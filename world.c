@@ -5,15 +5,13 @@
 #include "linmath.h"
 #include "world.h"
 
-#define SPEED 3
+#define SPEED 2
 
 vec2 pos[PARTICLE_COUNT];
 vec2 speed[PARTICLE_COUNT];
 vec2 pos_swap[PARTICLE_COUNT];
 vec2 speed_swap[PARTICLE_COUNT];
 vec2 force[PARTICLE_COUNT];
-
-struct input input = { false, false, false, false };
 
 void finalize_world()
 {
@@ -26,32 +24,38 @@ static double frand(double min, double max)
 
 void init_world()
 {
-    for (int i = 0; i < PARTICLE_COUNT; i++) {
-        pos[i][0] = frand(-1, 1);
-        pos[i][1] = frand(-1, 1);
-        speed[i][0] = frand(-0.1, 0.1);
-        speed[i][1] = frand(-0.1, 0.1);
+    for (int i = 0; i < PARTICLE_COUNT/2; i++) {
+        pos[i][0] = frand(-2, 2) - 3;
+        pos[i][1] = frand(-2, 2);
+        speed[i][1] = -0.5;
     }
+    for (int i = PARTICLE_COUNT/2; i < PARTICLE_COUNT; i++) {
+        pos[i][0] = frand(-2, 2) + 3;
+        pos[i][1] = frand(-2, 2);
+        speed[i][1] = 0.5;
+    }
+    /*
     pos[0][0] = 0;
     pos[0][1] = 0;
-    pos[1][0] = 0.05;
+    pos[1][0] = 0.5;
     pos[1][1] = 0;
     pos[2][0] = 10;
     pos[2][1] = 10;
     speed[0][0] = 0;
-    speed[0][1] = -0.02;
+    speed[0][1] = -0.05;
     speed[1][0] = 0;
-    speed[1][1] = 0.02;
+    speed[1][1] = 0.05;
     speed[2][0] = 10;
     speed[2][1] = 10;
+    */
     memcpy(pos_swap, pos, sizeof(vec2) * PARTICLE_COUNT);
     memcpy(speed_swap, speed, sizeof(vec2) * PARTICLE_COUNT);
 }
 
 void world_frame(double time)
 {
-    const double g = 0.0001;
-    const double epsilon = 0.001; // avoid singularities with r ~= 0
+    const double g = 0.02;
+    const double epsilon = 0.1; // avoid singularitiy at small distances
 
     memset(force, 0, sizeof(vec2) * PARTICLE_COUNT);
     for (int i = 0; i < PARTICLE_COUNT-1; i++) {

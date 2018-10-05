@@ -6,43 +6,14 @@
 #include <GL/gl.h>
 #include <GLFW/glfw3.h>
 #include "graphics.h"
+#include "input.h"
 #include "world.h"
 
-#define TARGET_FPS 600
-
-static void glfw_key(GLFWwindow* window, int key, int scancode, int action, int mods)
-{
-    if (action == GLFW_REPEAT)
-        return;
-    bool pressed = (action == GLFW_PRESS);
-
-    switch (key)
-    {
-    case GLFW_KEY_ESCAPE:
-        if (pressed && !mods)
-            glfwSetWindowShouldClose(window, GLFW_TRUE);
-        break;
-    case GLFW_KEY_UP:
-    case GLFW_KEY_KP_8:
-        input.up = pressed;
-        break;
-    case GLFW_KEY_DOWN:
-    case GLFW_KEY_KP_2:
-        input.down = pressed;
-        break;
-    case GLFW_KEY_LEFT:
-    case GLFW_KEY_KP_4:
-        input.left = pressed;
-        break;
-    case GLFW_KEY_RIGHT:
-    case GLFW_KEY_KP_6:
-        input.right = pressed;
-        break;
-    }
-}
+#define TARGET_FPS 60
 
 void exit_finalize(int code)
 {
+    finalize_input();
     finalize_graphics();
     finalize_world();
     exit(code);
@@ -73,14 +44,15 @@ int main(int argc, char *argv[])
     GLFWwindow* window = init_graphics();
     if (!window)
         exit_finalize(-1);
-    glfwSetKeyCallback(window, glfw_key);
+    init_input(window);
 
     // Main loop
     while (!glfwWindowShouldClose(window)) {
         double time = frame_sleep();
+        glfwPollEvents();
+        process_input(window);
         world_frame(time);
         draw();
-        glfwPollEvents();
     }
 
     exit_finalize(0);

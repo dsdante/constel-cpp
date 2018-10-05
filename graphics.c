@@ -6,21 +6,28 @@
 #include <GL/glew.h>
 #include <GL/gl.h>
 #include <GLFW/glfw3.h>
+#include "input.h"
 #include "linmath.h"
 #include "world.h"
 
-#define FIELD_OF_VIEW 3
 #define MULTISAMPLING 8
+#define ZOOM_SENSITIVITY 1.2
+#define SCROLL_SENSITIVITY 0.001767
 
 static GLFWwindow* window = NULL;
+static vec2 view_center = { 0, 0 };
+static float zoom = 0.07;
+static int win_width = 1024;
+static int win_height = 1024;
+
 static GLuint shader_program;
 static GLuint vertex_buffer = 0;
 GLint shader_position;
 const int vertice_count = 3;
 const GLfloat vertices[] = {
-    0,  0.01,
-    -0.00866,  -0.005,
-    0.00866,   -0.005,
+    0,  0.05,
+    -0.0433,  -0.025,
+    0.0433,   -0.025,
 };
 unsigned int instance_vbo;
 static mat4x4 projection;
@@ -44,10 +51,8 @@ static void glfw_error(int error, const char* description)
 
 void glfw_resize(GLFWwindow* window, int width, int height)
 {
-    glViewport(0, 0, width, height);
-    mat4x4_identity(projection);
-    float span = (float)FIELD_OF_VIEW / (width>height ? height : width);
-    mat4x4_ortho(projection, -span*width, span*width, -span*height, span*height, -1, 1);
+    win_width = width;
+    win_height = height;
 }
 
 void finalize_graphics()
@@ -110,7 +115,7 @@ GLFWwindow* init_graphics()
         return NULL;
     }
     glfwWindowHint(GLFW_SAMPLES, MULTISAMPLING);
-    if (!(window = glfwCreateWindow(1024, 1024, "Constel", NULL, NULL))) {
+    if (!(window = glfwCreateWindow(win_width, win_height, "Constel", NULL, NULL))) {
         fputs("glfwCreateWindow() failed\n", stderr);
         finalize_graphics();
         return NULL;
@@ -172,6 +177,21 @@ GLFWwindow* init_graphics()
 
 void draw()
 {
+    // Update view
+    zoom *= pow(ZOOM_SENSITIVITY, input.scroll);
+    view_center[0] -= (float)SCROLL_SENSITIVITY * input.panx / zoom;
+    view_center[1] += (float)SCROLL_SENSITIVITY * input.pany / zoom;
+    glViewport(0, 0, win_width, win_height);
+    mat4x4_identity(projection);
+    float span = 1.0f / zoom / (win_width>win_height ? win_height : win_width);
+    mat4x4_ortho(projection,
+            -span*win_width + view_center[0],
+            span*win_width + view_center[0],
+            -span*win_height + view_center[1],
+            span*win_height + view_center[1],
+            -1, 1);
+
+    // Draw
     glClear(GL_COLOR_BUFFER_BIT);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vec2) * PARTICLE_COUNT, pos, GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);

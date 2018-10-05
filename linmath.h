@@ -2,7 +2,6 @@
 #define LINMATH_H
 
 #include <math.h>
-#warning switch to double?
 
 #define LINMATH_H_DEFINE_VEC(n) \
 typedef float vec##n[n]; \
