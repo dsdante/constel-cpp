@@ -9,7 +9,7 @@
 #include "linmath.h"
 #include "world.h"
 
-#define SCALE 1
+#define FIELD_OF_VIEW 3
 #define MULTISAMPLING 8
 
 static GLFWwindow* window = NULL;
@@ -44,14 +44,10 @@ static void glfw_error(int error, const char* description)
 
 void glfw_resize(GLFWwindow* window, int width, int height)
 {
-//    int size = width > height ? height : width;
-//    glViewport((width-size)/2, (height-size)/2, size, size);
     glViewport(0, 0, width, height);
     mat4x4_identity(projection);
-    if (width > height)
-        mat4x4_ortho(projection, -(float)width/height/SCALE, (float)width/height/SCALE, -1.0f/SCALE, 1.0f/SCALE, -1, 1);
-    else
-        mat4x4_ortho(projection, -1.0f/SCALE, 1.0f/SCALE, -(float)height/width/SCALE, (float)height/width/SCALE, -1, 1);
+    float span = (float)FIELD_OF_VIEW / (width>height ? height : width);
+    mat4x4_ortho(projection, -span*width, span*width, -span*height, span*height, -1, 1);
 }
 
 void finalize_graphics()

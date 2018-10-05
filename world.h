@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include "linmath.h"
 
-#define PARTICLE_COUNT 100
+#define PARTICLE_COUNT 300
 
 struct input {
     bool up;
@@ -12,8 +12,8 @@ struct input {
     bool right;
 };
 
-extern vec2* pos;
-extern vec2* speed;
+extern vec2 pos[PARTICLE_COUNT];
+extern vec2 speed[PARTICLE_COUNT];
 extern struct input input;
 
 void init_world();

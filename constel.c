@@ -8,7 +8,7 @@
 #include "graphics.h"
 #include "world.h"
 
-#define TARGET_FPS 60
+#define TARGET_FPS 600
 
 static void glfw_key(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -19,7 +19,7 @@ static void glfw_key(GLFWwindow* window, int key, int scancode, int action, int 
     switch (key)
     {
     case GLFW_KEY_ESCAPE:
-        if (!mods && action == GLFW_PRESS)
+        if (pressed && !mods)
             glfwSetWindowShouldClose(window, GLFW_TRUE);
         break;
     case GLFW_KEY_UP:
