@@ -34,6 +34,7 @@ double frame_sleep()
     }
     last_interval = glfwGetTime() - last_time;
     last_time += last_interval;
+    fps = 1 / last_interval;
     return last_interval;
 }
 

@@ -51,7 +51,7 @@ void init_world()
 void world_frame(double time)
 {
     const double g = 0.02;
-    const double epsilon = 0.1; // avoid singularitiy at small distances
+    const double epsilon = 0.1; // TODO: reduce to zero
 
     memset(force, 0, sizeof(vecd2) * PARTICLE_COUNT);
     for (int i = 0; i < PARTICLE_COUNT-1; i++) {
