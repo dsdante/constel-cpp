@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include "linmath.h"
 
-#define PARTICLE_COUNT 300
+#define PARTICLE_COUNT 400
 
 extern vec2 pos_display[PARTICLE_COUNT];
 

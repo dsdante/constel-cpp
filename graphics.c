@@ -51,6 +51,28 @@ struct point {
 static GLuint text_vbo = 0;
 FT_Library ft;
 FT_Face face;
+struct atlas
+{
+    GLuint tex;     // texture object
+
+    unsigned int w;         // width of texture in pixels
+    unsigned int h;         // height of texture in pixels
+
+    struct
+    {
+        float ax;   // advance.x
+        float ay;   // advance.y
+
+        float bw;   // bitmap.width;
+        float bh;   // bitmap.height;
+
+        float bl;   // bitmap_left;
+        float bt;   // bitmap_top;
+
+        float tx;   // x offset of glyph in texture coordinates
+        float ty;   // y offset of glyph in texture coordinates
+    } c[128];       // character information
+} *status_atlas;
 
 static void glfw_error(int error, const char* description)
 {
@@ -80,8 +102,15 @@ void glfw_resize(GLFWwindow* window, int width, int height)
     update_view();
 }
 
+void delete_atlas(struct atlas *atlas)
+{
+    glDeleteTextures(1, &atlas->tex);
+    free(atlas);
+}
+
 void finalize_graphics()
 {
+    delete_atlas(status_atlas);
     if (star_buffer != GL_INVALID_VALUE) {
         glDeleteBuffers(1, (const GLuint[]){ star_buffer });
         star_buffer = GL_INVALID_VALUE;
@@ -192,6 +221,80 @@ GLuint make_program(const char *vertex_file, const char *fragment_file)
     return program;
 }
 
+struct atlas* new_atlas(FT_Face face, int height)
+{
+    const int texture_max_width = 1024;
+    struct atlas *atlas = (struct atlas*) malloc(sizeof(struct atlas));
+    FT_Set_Pixel_Sizes(face, 0, height);
+    FT_GlyphSlot g = face->glyph;
+    unsigned int roww = 0;
+    unsigned int rowh = 0;
+    atlas->w = 0;
+    atlas->h = 0;
+    memset(atlas->c, 0, sizeof(atlas->c));
+
+    for (int i = 32; i < 128; i++) {
+        if (FT_Load_Char(face, i, FT_LOAD_RENDER)) {
+            fprintf(stderr, "Loading character %c failed!\n", i);
+            continue;
+        }
+        if (roww + g->bitmap.width + 1 >= texture_max_width) {
+            if (roww > atlas->w)
+                atlas->w = roww;
+            atlas->h += rowh;
+            roww = 0;
+            rowh = 0;
+        }
+        roww += g->bitmap.width + 1;
+        if (g->bitmap.rows > rowh)
+            rowh = g->bitmap.rows;
+    }
+    if (roww > atlas->w)
+        atlas->w = roww;
+    atlas->h += rowh;
+
+    glActiveTexture(GL_TEXTURE0);
+    glGenTextures(1, &atlas->tex);
+    glBindTexture(GL_TEXTURE_2D, atlas->tex);
+    glUniform1i(text_texture_uniform, 0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, atlas->w, atlas->h, 0, GL_ALPHA,
+    GL_UNSIGNED_BYTE, 0);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    int ox = 0;
+    int oy = 0;
+    rowh = 0;
+    for (int i = 32; i < 128; i++) {
+        if (FT_Load_Char(face, i, FT_LOAD_RENDER)) {
+            fprintf(stderr, "Loading character %c failed!\n", i);
+            continue;
+        }
+        if (ox + g->bitmap.width + 1 >= texture_max_width) {
+            oy += rowh;
+            rowh = 0;
+            ox = 0;
+        }
+        glTexSubImage2D(GL_TEXTURE_2D, 0, ox, oy, g->bitmap.width, g->bitmap.rows, GL_ALPHA, GL_UNSIGNED_BYTE, g->bitmap.buffer);
+        atlas->c[i].ax = g->advance.x >> 6;
+        atlas->c[i].ay = g->advance.y >> 6;
+        atlas->c[i].bw = g->bitmap.width;
+        atlas->c[i].bh = g->bitmap.rows;
+        atlas->c[i].bl = g->bitmap_left;
+        atlas->c[i].bt = g->bitmap_top;
+        atlas->c[i].tx = ox / (float) atlas->w;
+        atlas->c[i].ty = oy / (float) atlas->h;
+        if (g->bitmap.rows > rowh)
+            rowh = g->bitmap.rows;
+        ox += g->bitmap.width + 1;
+    }
+
+    return atlas;
+}
+
 GLFWwindow* init_graphics()
 {
     // Init OpenGL and GLFW
@@ -263,80 +366,70 @@ GLFWwindow* init_graphics()
         finalize_graphics();
         return NULL;
     }
+    status_atlas = new_atlas(face, 48);
 
     return window;
 }
 
-void draw_text(const char *text, float x, float y, float sx, float sy)
+void draw_text(const char *text, struct atlas *a, float x, float y, float sx, float sy)
 {
-    const char *p;
-    FT_GlyphSlot g = face->glyph;
+    const uint8_t *p;
 
-    /* Create a texture that will be used to hold one "glyph" */
-    GLuint tex;
-
-    glActiveTexture(GL_TEXTURE0);
-    glGenTextures(1, &tex);
-    glBindTexture(GL_TEXTURE_2D, tex);
+    /* Use the texture containing the atlas */
+    glBindTexture(GL_TEXTURE_2D, a->tex);
     glUniform1i(text_texture_uniform, 0);
-
-    /* We require 1 byte alignment when uploading texture data */
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-    /* Clamping to edges is important to prevent artifacts when scaling */
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    /* Linear filtering usually looks best for text */
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     /* Set up the VBO for our vertex data */
     glEnableVertexAttribArray(text_coord_attrib);
     glBindBuffer(GL_ARRAY_BUFFER, text_vbo);
     glVertexAttribPointer(text_coord_attrib, 4, GL_FLOAT, GL_FALSE, 0, 0);
 
+    struct point coords[6 * strlen(text)];
+    int c = 0;
+
     /* Loop through all characters */
-    for (p = text; *p; p++) {
-        /* Try to load and render the character */
-        if (FT_Load_Char(face, *p, FT_LOAD_RENDER))
-            continue;
-
-        /* Upload the "bitmap", which contains an 8-bit grayscale image, as an alpha texture */
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, g->bitmap.width, g->bitmap.rows, 0, GL_ALPHA, GL_UNSIGNED_BYTE, g->bitmap.buffer);
-
+    for (p = (const uint8_t *) text; *p; p++) {
         /* Calculate the vertex and texture coordinates */
-        float x2 = x + g->bitmap_left * sx;
-        float y2 = -y - g->bitmap_top * sy;
-        float w = g->bitmap.width * sx;
-        float h = g->bitmap.rows * sy;
-
-        struct point box[4] = {
-            {x2, -y2, 0, 0},
-            {x2 + w, -y2, 1, 0},
-            {x2, -y2 - h, 0, 1},
-            {x2 + w, -y2 - h, 1, 1},
-        };
-
-        /* Draw the character on the screen */
-        glBufferData(GL_ARRAY_BUFFER, sizeof box, box, GL_DYNAMIC_DRAW);
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        float x2 = x + a->c[*p].bl * sx;
+        float y2 = -y - a->c[*p].bt * sy;
+        float w = a->c[*p].bw * sx;
+        float h = a->c[*p].bh * sy;
 
         /* Advance the cursor to the start of the next character */
-        x += (g->advance.x >> 6) * sx;
-        y += (g->advance.y >> 6) * sy;
+        x += a->c[*p].ax * sx;
+        y += a->c[*p].ay * sy;
+
+        /* Skip glyphs that have no pixels */
+        if (!w || !h)
+            continue;
+
+        coords[c++] = (struct point ) { x2, -y2, a->c[*p].tx, a->c[*p].ty };
+        coords[c++] = (struct point ) { x2 + w, -y2, a->c[*p].tx + a->c[*p].bw / a->w,
+                        a->c[*p].ty };
+        coords[c++] = (struct point ) { x2, -y2 - h, a->c[*p].tx, a->c[*p].ty
+                        + a->c[*p].bh / a->h };
+        coords[c++] = (struct point ) { x2 + w, -y2, a->c[*p].tx + a->c[*p].bw / a->w,
+                        a->c[*p].ty };
+        coords[c++] = (struct point ) { x2, -y2 - h, a->c[*p].tx, a->c[*p].ty
+                        + a->c[*p].bh / a->h };
+        coords[c++] =
+                (struct point ) { x2 + w, -y2 - h, a->c[*p].tx
+                                + a->c[*p].bw / a->w, a->c[*p].ty
+                                + a->c[*p].bh / a->h };
     }
 
+    /* Draw all the character on the screen in one go */
+    glBufferData(GL_ARRAY_BUFFER, sizeof coords, coords, GL_DYNAMIC_DRAW);
+    glDrawArrays(GL_TRIANGLES, 0, c);
+
     glDisableVertexAttribArray(text_coord_attrib);
-    glDeleteTextures(1, &tex);
 }
 
 void draw()
 {
     if (input.scroll || input.panx || input.pany)
         update_view();
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glEnable(GL_BLEND);
+    glClear(GL_COLOR_BUFFER_BIT);
 
     glBlendFunc(GL_ONE, GL_ONE);
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), NULL);
@@ -348,15 +441,22 @@ void draw()
     glUniformMatrix4fv(projection_uniform, 1, GL_FALSE, (const GLfloat*)projection);
     glDrawArraysInstanced(GL_TRIANGLES, 0, PARTICLE_COUNT, PARTICLE_COUNT);
 
+    glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glUseProgram(text_shader);
-    GLfloat transparent_green[4] = { 0, 1, 0, 0.7 };
     FT_Set_Pixel_Sizes(face, 0, 48);
-    char fps_str[10];
-    sprintf(fps_str, "%.1f FPS", fps);
-    glUniform4fv(text_color_uniform, 1, transparent_green);
-    draw_text(fps_str, -0.9, 0.8, 2.0/win_width, 2.0/win_height);
-
+    glUniform4fv(text_color_uniform, 1, (GLfloat[]){ 0, 1, 0, 0.7 });
+    char status_str[64];
+    sprintf(status_str, "X: %.2f  Y: %.2f", view_center[0], view_center[1]);
+    draw_text(status_str, status_atlas, -0.9, 0.8, 1.0/win_width, 1.0/win_height);
+    sprintf(status_str, "Zoom: %.2f%%", zoom*100);
+    draw_text(status_str, status_atlas, -0.9, 0.75, 1.0/win_width, 1.0/win_height);
+    sprintf(status_str, "%d FPS", (int)(fps+0.5));
+    draw_text(status_str, status_atlas, -0.9, 0.70, 1.0/win_width, 1.0/win_height);
+    //glUniform4fv(text_color_uniform, 1, (GLfloat[]){ 1, 0, 0, 0.7 });
+    //sprintf(status_str, "ACCESS DENIED");
+    //draw_text(status_str, status_atlas, -0.25, -0.9, 2.0/win_width, 2.0/win_height);
     glDisable(GL_BLEND);
+
     glfwSwapBuffers(window);
 }
