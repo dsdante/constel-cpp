@@ -3,15 +3,15 @@
 #include <string.h>
 #include <math.h>
 #include "linmath.h"
+#include "linmathd.h"
 #include "world.h"
 
 #define SPEED 2
 
-vec2 pos[PARTICLE_COUNT];
-vec2 speed[PARTICLE_COUNT];
-vec2 pos_swap[PARTICLE_COUNT];
-vec2 speed_swap[PARTICLE_COUNT];
-vec2 force[PARTICLE_COUNT];
+vec2 pos_display[PARTICLE_COUNT];
+vecd2 pos[PARTICLE_COUNT];
+vecd2 speed[PARTICLE_COUNT];
+vecd2 force[PARTICLE_COUNT];
 
 void finalize_world()
 {
@@ -25,31 +25,27 @@ static double frand(double min, double max)
 void init_world()
 {
     for (int i = 0; i < PARTICLE_COUNT/2; i++) {
-        pos[i][0] = frand(-2, 2) - 3;
-        pos[i][1] = frand(-2, 2);
-        speed[i][1] = -0.5;
+        pos[i] = (vecd2){ frand(-2, 2) - 3, frand(-2, 2) };
+        speed[i].y = -0.5;
     }
     for (int i = PARTICLE_COUNT/2; i < PARTICLE_COUNT; i++) {
-        pos[i][0] = frand(-2, 2) + 3;
-        pos[i][1] = frand(-2, 2);
-        speed[i][1] = 0.5;
+        pos[i] = (vecd2) { frand(-2, 2) + 3, frand(-2, 2) };
+        speed[i].y = 0.5;
     }
     /*
-    pos[0][0] = 0;
-    pos[0][1] = 0;
-    pos[1][0] = 0.5;
-    pos[1][1] = 0;
-    pos[2][0] = 10;
-    pos[2][1] = 10;
-    speed[0][0] = 0;
-    speed[0][1] = -0.05;
-    speed[1][0] = 0;
-    speed[1][1] = 0.05;
-    speed[2][0] = 10;
-    speed[2][1] = 10;
+    pos[0].x = 0;
+    pos[0].y = 0;
+    pos[1].x = 0.1;
+    pos[1].y = 0;
+    pos[2].x = 10;
+    pos[2].y = 10;
+    speed[0].x = 0;
+    speed[0].y = -0.02;
+    speed[1].x = 0;
+    speed[1].y = 0.02;
+    speed[2].x = 10;
+    speed[2].y = 10;
     */
-    memcpy(pos_swap, pos, sizeof(vec2) * PARTICLE_COUNT);
-    memcpy(speed_swap, speed, sizeof(vec2) * PARTICLE_COUNT);
 }
 
 void world_frame(double time)
@@ -57,29 +53,27 @@ void world_frame(double time)
     const double g = 0.02;
     const double epsilon = 0.1; // avoid singularitiy at small distances
 
-    memset(force, 0, sizeof(vec2) * PARTICLE_COUNT);
+    memset(force, 0, sizeof(vecd2) * PARTICLE_COUNT);
     for (int i = 0; i < PARTICLE_COUNT-1; i++) {
         for (int k = i+1; k < PARTICLE_COUNT; k++) {
-            double dx = pos[k][0] - pos[i][0];
-            double dy = pos[k][1] - pos[i][1];
-            if (dx == 0 && dy == 0)
+            vecd2 diff = vecd2_sub(pos[k], pos[i]);
+            double sqr = vecd2_sqr(diff);
+            if (sqr == 0)
                 continue;
-            double angle = atan2(dy, dx);
-            double f = g / (dx*dx + dy*dy + epsilon);
-            double fx = f * cos(angle);
-            double fy = f * sin(angle);
-            force[i][0] += fx;
-            force[i][1] += fy;
-            force[k][0] -= fx;
-            force[k][1] -= fy;
+            double angle = vecd2_angle(diff);
+            double _f = g / (sqr + epsilon);
+            vecd2 f = (vecd2){ _f * cos(angle), _f * sin(angle) };
+            force[i].x += f.x;
+            force[i].y += f.y;
+            force[k].x -= f.x;
+            force[k].y -= f.y;
         }
     }
     for (int i = 0; i < PARTICLE_COUNT; i++) {
-        speed_swap[i][0] += time * SPEED * force[i][0];
-        speed_swap[i][1] += time * SPEED * force[i][1];
-        pos_swap[i][0] += time * SPEED * (speed[i][0] + speed_swap[i][0]) / 2;
-        pos_swap[i][1] += time * SPEED * (speed[i][1] + speed_swap[i][1]) / 2;
+        vecd2 _speed = (vecd2){ speed[i].x + time * SPEED * force[i].x, speed[i].y + time * SPEED * force[i].y };
+        pos[i].x += time * SPEED * (speed[i].x + _speed.x) / 2;
+        pos[i].y += time * SPEED * (speed[i].y + _speed.y) / 2;
+        speed[i] = _speed;
     }
-    memcpy(pos, pos_swap, sizeof(vec2) * PARTICLE_COUNT);
-    memcpy(speed, speed_swap, sizeof(vec2) * PARTICLE_COUNT);
+    to_vec2_array(pos, pos_display, PARTICLE_COUNT);
 }
