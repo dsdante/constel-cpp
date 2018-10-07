@@ -11,12 +11,13 @@
 #include "common.h"
 #include "input.h"
 #include "linmath.h"
+#include "linmathd.h"
 #include "world.h"
 
 #define MULTISAMPLING 8
 #define FONT "/usr/share/fonts/TTF/DejaVuSansMono.ttf"
+#define DEFAULT_ZOOM 50
 #define ZOOM_SENSITIVITY 1.2
-#define PAN_SENSITIVITY 0.0285
 #define ALIGN_TOPLEFT 0
 #define ALIGN_BOTTOMLEFT 1
 #define ALIGN_TOPRIGHT 2
@@ -29,7 +30,7 @@ static int win_height = 1024;
 static bool need_update = true;
 
 static vec2 view_center = { 0, 0 };
-static float zoom = 1;
+static float zoom = DEFAULT_ZOOM;
 static mat4x4 projection;
 static GLint projection_uniform;
 static GLuint star_shader;
@@ -305,16 +306,26 @@ static void update_view()
     need_update = false;
     glViewport(0, 0, win_width, win_height);
 
-    zoom *= pow(ZOOM_SENSITIVITY, input.scroll);
-    view_center[0] -= (float)PAN_SENSITIVITY * input.panx / zoom;
-    view_center[1] += (float)PAN_SENSITIVITY * input.pany / zoom;
+    view_center[0] -= input.panx / zoom;
+    view_center[1] += input.pany / zoom;
+
+    if (input.scroll) {
+        float new_zoom = zoom * pow(ZOOM_SENSITIVITY, input.scroll);
+        vecd2 mouse; // mouse position in pixels
+        glfwGetCursorPos(window, &mouse.x, &mouse.y);
+        mouse.x = mouse.x - 0.5*win_width;
+        mouse.y = 0.5*win_height - mouse.y;
+        view_center[0] += (float)mouse.x * (1/zoom - 1/new_zoom); // keep the coordinate under mouse when zooming
+        view_center[1] += (float)mouse.y * (1/zoom - 1/new_zoom);
+        zoom = new_zoom;
+    }
+
     mat4x4_identity(projection);
-    //float span = 1.0f / zoom / (win_width>win_height ? win_height : win_width);
     mat4x4_ortho(projection,
-        -win_width/zoom/70 + view_center[0],
-        win_width/zoom/70 + view_center[0],
-        -win_height/zoom/70 + view_center[1],
-        win_height/zoom/70 + view_center[1],
+        -0.5f*win_width/zoom + view_center[0],
+         0.5f*win_width/zoom + view_center[0],
+        -0.5f*win_height/zoom + view_center[1],
+         0.5f*win_height/zoom + view_center[1],
         -1, 1);
     glUseProgram(star_shader);
     glUniformMatrix4fv(projection_uniform, 1, GL_FALSE, (const GLfloat*)projection);
@@ -457,10 +468,10 @@ void draw()
     glUniform4fv(text_color_uniform, 1, (GLfloat[]){ 0, 1, 0, 1 });
     int y = 20;
     draw_text(status_font, win_width - 20, y, ALIGN_TOPRIGHT, "X: %.2f  Y: %.2f", view_center[0], view_center[1]);
-    if (zoom > 1)
-        draw_text(status_font, win_width - 20, y+=25, ALIGN_TOPRIGHT, "Zoom: %ld:1", (long)(zoom+0.5));
+    if ((int)(zoom / DEFAULT_ZOOM) > 1)
+        draw_text(status_font, win_width - 20, y+=25, ALIGN_TOPRIGHT, "Zoom: %.0fx", zoom/DEFAULT_ZOOM);
     else
-        draw_text(status_font, win_width - 20, y+=25, ALIGN_TOPRIGHT, "Zoom: 1:%ld", (long)(1.0f/zoom+0.5));
+        draw_text(status_font, win_width - 20, y+=25, ALIGN_TOPRIGHT, "Zoom: 1:%.0f", (float)DEFAULT_ZOOM/zoom);
     draw_text(status_font, win_width - 20, y+=25, ALIGN_TOPRIGHT, "%.0f FPS", get_fps_period(1)+0.5);
     glDisable(GL_BLEND);
 
