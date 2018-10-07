@@ -46,7 +46,7 @@ static mat4x4 text_projection;
 static GLuint text_vbo = 0;
 static FT_Library ft;
 
-struct point {
+struct font_point {
     GLfloat x;
     GLfloat y;
     GLfloat s;
@@ -61,12 +61,12 @@ struct font
     unsigned int h; // height of texture in pixels
     struct
     {
-        float ax;   // advance.x
-        float ay;   // advance.y
-        float bw;   // bitmap.width;
-        float bh;   // bitmap.height;
-        float bl;   // bitmap_left;
-        float bt;   // bitmap_top;
+        float dx;   // advance.x
+        float dy;   // advance.y
+        float w;   // bitmap.width;
+        float h;   // bitmap.height;
+        float x;   // bitmap_left;
+        float y;   // bitmap_top;
         float tx;   // x offset of glyph in texture coordinates
         float ty;   // y offset of glyph in texture coordinates
     } c[128];       // character information
@@ -135,12 +135,12 @@ static struct font* new_font(const char* font_path, int size)
             ox = 0;
         }
         glTexSubImage2D(GL_TEXTURE_2D, 0, ox, oy, g->bitmap.width, g->bitmap.rows, GL_ALPHA, GL_UNSIGNED_BYTE, g->bitmap.buffer);
-        font->c[i].ax = g->advance.x >> 6;
-        font->c[i].ay = g->advance.y >> 6;
-        font->c[i].bw = g->bitmap.width;
-        font->c[i].bh = g->bitmap.rows;
-        font->c[i].bl = g->bitmap_left;
-        font->c[i].bt = g->bitmap_top;
+        font->c[i].dx = g->advance.x >> 6;
+        font->c[i].dy = g->advance.y >> 6;
+        font->c[i].w = g->bitmap.width;
+        font->c[i].h = g->bitmap.rows;
+        font->c[i].x = g->bitmap_left;
+        font->c[i].y = g->bitmap_top;
         font->c[i].tx = ox / (float)font->w;
         font->c[i].ty = oy / (float)font->h;
         if (g->bitmap.rows > rowh)
@@ -174,33 +174,43 @@ static void draw_text(struct font *font, int x, int y, int align, const char* re
 
     glBindTexture(GL_TEXTURE_2D, font->tex);
     glUniform1i(text_texture_uniform, 0);
-
     glEnableVertexAttribArray(text_coord_attrib);
     glBindBuffer(GL_ARRAY_BUFFER, text_vbo);
     glVertexAttribPointer(text_coord_attrib, 4, GL_FLOAT, GL_FALSE, 0, 0);
 
     y = win_height - y;
-    struct point coords[6 * length];
-    int c = 0;
+    float total_width = 0;
+    float total_height = 0;
+    struct font_point coords[6 * length];
+    int n = 0;
     for (uint8_t *p = (uint8_t*)text; *p; p++) {
-        float x2 = x + font->c[*p].bl;
-        float y2 = -y - font->c[*p].bt;
-        float w = font->c[*p].bw;
-        float h = font->c[*p].bh;
-        x += font->c[*p].ax;
-        y += font->c[*p].ay;
+        float x2 = x + font->c[*p].x;
+        float y2 = y + font->c[*p].y;
+        float w = font->c[*p].w;
+        float h = font->c[*p].h;
+        x += font->c[*p].dx;
+        y += font->c[*p].dy;
+        total_width += font->c[*p].dx;
+        if (total_height < font->c[*p].h)
+            total_height = font->c[*p].h;
         if (!w || !h)
             continue;
-        coords[c++] = (struct point){ x2, -y2, font->c[*p].tx, font->c[*p].ty };
-        coords[c++] = (struct point){ x2 + w, -y2, font->c[*p].tx + font->c[*p].bw / font->w, font->c[*p].ty };
-        coords[c++] = (struct point){ x2, -y2 - h, font->c[*p].tx, font->c[*p].ty + font->c[*p].bh / font->h };
-        coords[c++] = (struct point){ x2 + w, -y2, font->c[*p].tx + font->c[*p].bw / font->w, font->c[*p].ty };
-        coords[c++] = (struct point){ x2, -y2 - h, font->c[*p].tx, font->c[*p].ty + font->c[*p].bh / font->h };
-        coords[c++] = (struct point){ x2 + w, -y2 - h, font->c[*p].tx + font->c[*p].bw / font->w, font->c[*p].ty + font->c[*p].bh / font->h };
+        coords[n++] = (struct font_point){ x2,   y2,   font->c[*p].tx, font->c[*p].ty };
+        coords[n++] = (struct font_point){ x2+w, y2,   font->c[*p].tx + font->c[*p].w / font->w, font->c[*p].ty };
+        coords[n++] = (struct font_point){ x2,   y2-h, font->c[*p].tx, font->c[*p].ty + font->c[*p].h / font->h };
+        coords[n++] = (struct font_point){ x2+w, y2,   font->c[*p].tx + font->c[*p].w / font->w, font->c[*p].ty };
+        coords[n++] = (struct font_point){ x2,   y2-h, font->c[*p].tx, font->c[*p].ty + font->c[*p].h / font->h };
+        coords[n++] = (struct font_point){ x2+w, y2-h, font->c[*p].tx + font->c[*p].w / font->w, font->c[*p].ty + font->c[*p].h / font->h };
+    }
+    for (int i = 0; i < n; i++) {
+        if (align == ALIGN_TOPRIGHT || align == ALIGN_BOTTOMRIGHT)
+            coords[i].x -= total_width;
+        if (align == ALIGN_TOPLEFT || align == ALIGN_TOPRIGHT)
+            coords[i].y -= total_height;
     }
 
     glBufferData(GL_ARRAY_BUFFER, sizeof coords, coords, GL_DYNAMIC_DRAW);
-    glDrawArrays(GL_TRIANGLES, 0, c);
+    glDrawArrays(GL_TRIANGLES, 0, n);
     glDisableVertexAttribArray(text_coord_attrib);
 }
 
@@ -422,7 +432,7 @@ GLFWwindow* init_graphics()
         finalize_graphics();
         return NULL;
     }
-    status_font = new_font(FONT, 12);
+    status_font = new_font(FONT, 16);
     if (!status_font) {
         finalize_graphics();
         return NULL;
@@ -448,14 +458,14 @@ void draw()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glUseProgram(text_shader);
-    glUniform4fv(text_color_uniform, 1, (GLfloat[]){ 0, 1, 0, 0.7 });
-    draw_text(status_font, 20, 30, ALIGN_TOPLEFT, "X: %.2f  Y: %.2f", view_center[0], view_center[1]);
-    draw_text(status_font, 20, 50, ALIGN_TOPLEFT, "W: %d  H: %d", win_width, win_height);
+    glUniform4fv(text_color_uniform, 1, (GLfloat[]){ 0, 1, 0, 1 });
+    int y = 20;
+    draw_text(status_font, win_width - 20, y, ALIGN_TOPRIGHT, "X: %.2f  Y: %.2f", view_center[0], view_center[1]);
     if (zoom > 1)
-        draw_text(status_font, 20, 70, ALIGN_TOPLEFT, "Zoom: %ld:1", (long)(zoom+0.5));
+        draw_text(status_font, win_width - 20, y+=25, ALIGN_TOPRIGHT, "Zoom: %ld:1", (long)(zoom+0.5));
     else
-        draw_text(status_font, 20, 70, ALIGN_TOPLEFT, "Zoom: 1:%ld", (long)(1.0f/zoom+0.5));
-    draw_text(status_font, 20, 90, ALIGN_TOPLEFT, "%d FPS", (int)(fps+0.5));
+        draw_text(status_font, win_width - 20, y+=25, ALIGN_TOPRIGHT, "Zoom: 1:%ld", (long)(1.0f/zoom+0.5));
+    draw_text(status_font, win_width - 20, y+=25, ALIGN_TOPRIGHT, "%d FPS", (int)(fps+0.5));
     glDisable(GL_BLEND);
 
     glfwSwapBuffers(window);
