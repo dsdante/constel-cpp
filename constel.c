@@ -5,6 +5,7 @@
 #include <time.h>
 #include <GL/gl.h>
 #include <GLFW/glfw3.h>
+#include "common.h"
 #include "graphics.h"
 #include "input.h"
 #include "world.h"
@@ -44,7 +45,7 @@ int main(int argc, char *argv[])
     init_world();
     GLFWwindow* window = init_graphics();
     if (!window)
-        exit_finalize(-1);
+        exit_finalize(1);
     init_input(window);
 
     // Main loop

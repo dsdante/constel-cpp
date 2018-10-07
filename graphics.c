@@ -8,6 +8,7 @@
 #include <GL/glew.h>
 #include <GL/gl.h>
 #include <GLFW/glfw3.h>
+#include "common.h"
 #include "input.h"
 #include "linmath.h"
 #include "world.h"
@@ -15,9 +16,12 @@
 #define MULTISAMPLING 8
 #define FONT "/usr/share/fonts/TTF/DejaVuSansMono.ttf"
 #define ZOOM_SENSITIVITY 1.2
-#define SCROLL_SENSITIVITY 0.01767
+#define PAN_SENSITIVITY 0.0285
+#define ALIGN_TOPLEFT 0
+#define ALIGN_BOTTOMLEFT 1
+#define ALIGN_TOPRIGHT 2
+#define ALIGN_BOTTOMRIGHT 3
 
-double fps = 0;
 static GLFWwindow* window = NULL;
 static bool glfw_initialized = false;
 static int win_width = 1024;
@@ -53,7 +57,7 @@ struct font_point {
     GLfloat t;
 };
 
-struct font
+static struct font
 {
     int size;
     GLuint tex;     // texture object
@@ -85,8 +89,8 @@ static struct font* new_font(const char* font_path, int size)
     font->size = size;
     FT_Set_Pixel_Sizes(face, 0, size);
     FT_GlyphSlot g = face->glyph;
-    unsigned int roww = 0;
-    unsigned int rowh = 0;
+    int roww = 0;
+    int rowh = 0;
     font->w = 0;
     font->h = 0;
     memset(font->c, 0, sizeof(font->c));
@@ -118,8 +122,8 @@ static struct font* new_font(const char* font_path, int size)
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     int ox = 0;
     int oy = 0;
@@ -156,11 +160,6 @@ static void delete_font(struct font *font)
     glDeleteTextures(1, &font->tex);
     free(font);
 }
-
-#define ALIGN_TOPLEFT 0
-#define ALIGN_BOTTOMLEFT 1
-#define ALIGN_TOPRIGHT 2
-#define ALIGN_BOTTOMRIGHT 3
 
 static void draw_text(struct font *font, int x, int y, int align, const char* restrict format, ...)
 {
@@ -307,8 +306,8 @@ static void update_view()
     glViewport(0, 0, win_width, win_height);
 
     zoom *= pow(ZOOM_SENSITIVITY, input.scroll);
-    view_center[0] -= (float)SCROLL_SENSITIVITY * input.panx / zoom;
-    view_center[1] += (float)SCROLL_SENSITIVITY * input.pany / zoom;
+    view_center[0] -= (float)PAN_SENSITIVITY * input.panx / zoom;
+    view_center[1] += (float)PAN_SENSITIVITY * input.pany / zoom;
     mat4x4_identity(projection);
     //float span = 1.0f / zoom / (win_width>win_height ? win_height : win_width);
     mat4x4_ortho(projection,
@@ -357,6 +356,7 @@ void finalize_graphics()
         text_vbo = GL_INVALID_VALUE;
     }
     glDeleteProgram(star_shader);
+    glDeleteProgram(text_shader);
     if (window) {
         glfwDestroyWindow(window);
         window = NULL;
@@ -379,8 +379,8 @@ GLFWwindow* init_graphics()
     }
     glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
     glfwWindowHint(GLFW_SAMPLES, MULTISAMPLING);
-    if (!(window = glfwCreateWindow(win_width, win_height, "Constel", NULL, NULL))) {
-        fputs("glfwCreateWindow failed\n", stderr);
+    window = glfwCreateWindow(win_width, win_height, "Constel", NULL, NULL);
+    if (!window) {
         finalize_graphics();
         return NULL;
     }
@@ -391,7 +391,7 @@ GLFWwindow* init_graphics()
     glfwSetWindowPos(window, (mode->width - win_width) / 2, (mode->height - win_height) / 2); // center of the primary screen
     glewExperimental = GL_TRUE;
     if (glewInit() != GLEW_OK) {
-        fputs("glewInit() failed\n", stderr);
+        fputs("glewInit failed\n", stderr);
         finalize_graphics();
         return NULL;
     }
@@ -402,7 +402,7 @@ GLFWwindow* init_graphics()
     glBufferData(GL_ARRAY_BUFFER, sizeof(star_vertices), star_vertices, GL_STATIC_DRAW);
     glGenBuffers(1, &star_vbo);
     glBindBuffer(GL_ARRAY_BUFFER, star_vbo);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), NULL);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2*sizeof(float), NULL);
     glVertexAttribDivisor(2, 1);
     glEnableVertexAttribArray(2);
     star_shader = make_shader_program("star.vert", "star.frag");
@@ -428,10 +428,6 @@ GLFWwindow* init_graphics()
     text_projection_uniform = glGetUniformLocation(text_shader, "projection");
     text_texture_uniform = glGetUniformLocation(text_shader, "tex");
     text_color_uniform = glGetUniformLocation(text_shader, "color");
-    if(text_coord_attrib == -1 || text_texture_uniform == -1 || text_color_uniform == -1) {
-        finalize_graphics();
-        return NULL;
-    }
     status_font = new_font(FONT, 16);
     if (!status_font) {
         finalize_graphics();

@@ -1,3 +1,6 @@
+#ifndef INPUT_H
+#define INPUT_H
+
 #include <stdbool.h>
 
 // all members must be resettable with memset(0)
@@ -17,3 +20,5 @@ extern struct input input;
 void init_input(GLFWwindow* window);
 void process_input();
 void finalize_input();
+
+#endif // INPUT_H
