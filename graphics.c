@@ -461,7 +461,7 @@ void draw()
         draw_text(status_font, win_width - 20, y+=25, ALIGN_TOPRIGHT, "Zoom: %ld:1", (long)(zoom+0.5));
     else
         draw_text(status_font, win_width - 20, y+=25, ALIGN_TOPRIGHT, "Zoom: 1:%ld", (long)(1.0f/zoom+0.5));
-    draw_text(status_font, win_width - 20, y+=25, ALIGN_TOPRIGHT, "%d FPS", (int)(fps+0.5));
+    draw_text(status_font, win_width - 20, y+=25, ALIGN_TOPRIGHT, "%.0f FPS", get_fps_period(1)+0.5);
     glDisable(GL_BLEND);
 
     glfwSwapBuffers(window);

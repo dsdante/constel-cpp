@@ -10,8 +10,6 @@
 #include "input.h"
 #include "world.h"
 
-#define TARGET_FPS 60
-
 void exit_finalize(int code)
 {
     finalize_input();
@@ -35,7 +33,7 @@ double frame_sleep()
     }
     last_interval = glfwGetTime() - last_time;
     last_time += last_interval;
-    fps = 1 / last_interval;
+    set_fps(1 / last_interval);
     return last_interval;
 }
 
