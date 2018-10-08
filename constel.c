@@ -40,7 +40,9 @@ double frame_sleep()
 
 int main(int argc, char *argv[])
 {
-    srand(time(NULL));
+    time_t seed = time(NULL);
+    //printf("Random seed: 0x%lx\n", seed);
+    srand(seed);
     char* config_file = NULL;
     if (argc >= 2)
         config_file = argv[1];

@@ -7,6 +7,7 @@
 #define DEFAULT_CONFIG_FILE "constel.conf"
 #define CONFIG_GROUP "Constel"
 #define CONFIG_STARS "Stars"
+#define CONFIG_STAR_SPEED "StarSpeed"
 #define CONFIG_GRAVITY "Gravity"
 #define CONFIG_EPSILON "Epsilon"
 #define CONFIG_SPEED "Speed"
@@ -42,8 +43,9 @@ char* read_file(const char *filename, int *length)
 
 struct config config = {
     .stars = 400,
-    .gravity = 0.02,
-    .epsilon = 0.1,
+    .star_speed = 0.55,
+    .gravity = 0.004,
+    .epsilon = 0.5,
     .speed = 2,
     .min_fps = 30,
     .max_fps = 60,
@@ -92,6 +94,8 @@ void init_config(const char* filename)
 
         if (!strncmp(key, CONFIG_STARS, sizeof(CONFIG_STARS)-1)) {
             sscanf(value, "%d", &config.stars);
+        } else if (!strncmp(key, CONFIG_STAR_SPEED, sizeof(CONFIG_STAR_SPEED)-1)) {
+            sscanf(value, "%lf", &config.star_speed);
         } else if (!strncmp(key, CONFIG_GRAVITY, sizeof(CONFIG_GRAVITY)-1)) {
             sscanf(value, "%lf", &config.gravity);
         } else if (!strncmp(key, CONFIG_EPSILON, sizeof(CONFIG_EPSILON)-1)) {

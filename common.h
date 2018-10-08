@@ -6,6 +6,7 @@
 extern struct config
 {
     int stars;
+    double star_speed;
     double gravity;
     double epsilon;
     double speed;

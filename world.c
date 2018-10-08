@@ -31,27 +31,29 @@ void init_world()
     pos = malloc(config.stars * sizeof(vecd2));
     speed = malloc(config.stars * sizeof(vecd2));
     force = malloc(config.stars * sizeof(vecd2));
-    for (int i = 0; i < config.stars/2; i++) {
-        pos[i] = (vecd2){ frand(-2, 2) - 3, frand(-2, 2) };
-        speed[i].y = -0.5;
-    }
-    for (int i = config.stars/2; i < config.stars; i++) {
-        pos[i] = (vecd2) { frand(-2, 2) + 3, frand(-2, 2) };
-        speed[i].y = 0.5;
+    for (int i = 0; i < config.stars; i++) {
+        double d = frand(0, 3);
+        double dir = frand(0, 2*M_PI);
+        pos[i] = (vecd2){ d * cos(dir), d * sin(dir) };
+        speed[i] = (vecd2){ config.star_speed * pow(d, 0.25) * sin(dir), -config.star_speed * pow(d, 0.25) * cos(dir) };
     }
     /*
-    pos[0].x = 0;
+    config.stars = 3;
+    config.gravity = 0.02;
+    config.epsilon = 0.1;
+    config.speed = 2;
+    pos[0].x = 0.1;
     pos[0].y = 0;
-    pos[1].x = 0.1;
+    pos[1].x = -0.1;
     pos[1].y = 0;
-    pos[2].x = 10;
-    pos[2].y = 10;
+    pos[2].x = 100;
+    pos[2].y = 100;
     speed[0].x = 0;
-    speed[0].y = -0.02;
+    speed[0].y = -0.01;
     speed[1].x = 0;
-    speed[1].y = 0.02;
-    speed[2].x = 10;
-    speed[2].y = 10;
+    speed[1].y = 0.01;
+    speed[2].x = 100;
+    speed[2].y = 100;
     */
 }
 
