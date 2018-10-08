@@ -445,7 +445,7 @@ void draw()
     glClear(GL_COLOR_BUFFER_BIT);
 
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), NULL);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vec2) * config.particles, pos_display, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vec2) * config.particles, pos_display, GL_STREAM_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, star_buffer);
     glInterleavedArrays(GL_V2F, 0, NULL);
     glBindBuffer(GL_ARRAY_BUFFER, star_vbo);
