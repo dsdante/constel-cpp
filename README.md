@@ -1,6 +1,14 @@
 # Constel
 A galaxy model
 
-Requires GLFW3 and FreeType libraries.
+## Requirements
+Arch Linux:  
+\# pacman -S glew glfw-x11 freetype2
 
-Control: mouse drag, mouse wheel, F for fullscreen.
+Debian/Ubuntu (unconfirmed):  
+\# apt-get install libglew-dev libglfw3-dev libfreetype6-dev
+
+## Control
+Mouse drag: pan  
+Mouse wheel: zoom  
+F: fullscreen
