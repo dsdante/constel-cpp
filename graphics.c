@@ -53,10 +53,10 @@ static struct font
     {
         float dx;   // advance.x
         float dy;   // advance.y
-        float w;   // bitmap.width;
-        float h;   // bitmap.height;
-        float x;   // bitmap_left;
-        float y;   // bitmap_top;
+        float w;    // bitmap.width;
+        float h;    // bitmap.height;
+        float x;    // bitmap_left;
+        float y;    // bitmap_top;
         float tx;   // x offset of glyph in texture coordinates
         float ty;   // y offset of glyph in texture coordinates
     } c[128];       // character information
@@ -202,9 +202,15 @@ static void draw_text(struct font *font, int x, int y, int align, const char* re
 
 // ============================= General graphics =============================
 
-static GLFWwindow* window = NULL;
 static bool glfw_initialized = false;
-static bool need_update = true;
+static GLFWwindow* window = NULL;
+static bool fullscreen = false;
+static bool maximized = true;
+static int restored_x;
+static int restored_y;
+static int restored_width = 1024;
+static int restored_height = 1024;
+static bool need_update_view = true;
 
 static vec2 view_center = { 0, 0 };
 static float zoom = DEFAULT_ZOOM;
@@ -288,9 +294,45 @@ static GLuint make_shader_program(const char *vertex_file, const char *fragment_
     return program;
 }
 
+static void update_window()
+{
+    bool toggle_fullscreen = input.f % 2;
+    bool toggle_maximize = (maximized != glfwGetWindowAttrib(window, GLFW_MAXIMIZED));
+
+    if (toggle_fullscreen) {
+        fullscreen = !fullscreen;
+        GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+        const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+        if (fullscreen) {
+            if (!maximized) {
+                glfwGetWindowPos(window, &restored_x, &restored_y);
+                glfwGetWindowSize(window, &restored_width, &restored_height);
+            }
+            glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+        } else {
+            glfwSetWindowMonitor(window, NULL, restored_x, restored_y, restored_width, restored_height, mode->refreshRate);
+            if (maximized)
+                glfwMaximizeWindow(window);
+        }
+    }
+    if (toggle_maximize && !fullscreen) {
+        maximized = !maximized;
+        if (!maximized) {
+            glfwSetWindowPos(window, restored_x, restored_y);
+            glfwSetWindowSize(window, restored_width, restored_height);
+        }
+    }
+    if (!fullscreen && !maximized && !toggle_maximize) { // if just moving around, track resotred size/position
+        glfwGetWindowPos(window, &restored_x, &restored_y);
+        glfwGetWindowSize(window, &restored_width, &restored_height);
+    }
+    if (toggle_fullscreen || toggle_maximize)
+        need_update_view = true;
+}
+
 static void update_view()
 {
-    need_update = false;
+    need_update_view = false;
     glViewport(0, 0, win_width, win_height);
 
     view_center[0] -= input.panx / zoom;
@@ -328,11 +370,17 @@ static void glfw_error(int error, const char* description)
     fprintf(stderr, "GLFW error: %s\n", description);
 }
 
+static void glfw_move(GLFWwindow* window, int xpos, int ypos)
+{
+    update_window();
+}
+
 static void glfw_resize(GLFWwindow* window, int width, int height)
 {
     win_width = width;
     win_height = height;
-    need_update = true;
+    update_window();
+    need_update_view = true;
 }
 
 void finalize_graphics()
@@ -382,11 +430,13 @@ GLFWwindow* init_graphics()
         finalize_graphics();
         return NULL;
     }
+    glfwSetWindowPosCallback(window, glfw_move);
     glfwSetFramebufferSizeCallback(window, glfw_resize);
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
     const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-    glfwSetWindowPos(window, (mode->width - win_width) / 2, (mode->height - win_height) / 2); // center of the primary screen
+    restored_x = (mode->width - restored_width) / 2;
+    restored_y = (mode->height - restored_height) / 2;
     glewExperimental = GL_TRUE;
     if (glewInit() != GLEW_OK) {
         fputs("glewInit failed\n", stderr);
@@ -442,8 +492,11 @@ GLFWwindow* init_graphics()
 
 void draw()
 {
-    if (need_update || input.scroll || input.panx || input.pany)
+    if (input.f % 2 || (maximized != glfwGetWindowAttrib(window, GLFW_MAXIMIZED)))
+        update_window();
+    if (need_update_view || input.scroll || input.panx || input.pany)
         update_view();
+
     glClear(GL_COLOR_BUFFER_BIT);
 
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), NULL);

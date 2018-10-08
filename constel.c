@@ -56,7 +56,6 @@ int main(int argc, char *argv[])
     // Main loop
     while (!glfwWindowShouldClose(window)) {
         double time = frame_sleep();
-        glfwPollEvents();
         process_input(window);
         world_frame(time);
         draw();

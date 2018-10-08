@@ -16,11 +16,6 @@ static void glfw_key(GLFWwindow* window, int key, int scancode, int action, int 
     bool pressed = (action == GLFW_PRESS);
 
     switch (key) {
-    case GLFW_KEY_ESCAPE:
-    case GLFW_KEY_Q:
-        if (pressed && !mods)
-            glfwSetWindowShouldClose(window, GLFW_TRUE);
-        break;
     case GLFW_KEY_UP:
     case GLFW_KEY_KP_8:
         input.up = pressed;
@@ -36,6 +31,14 @@ static void glfw_key(GLFWwindow* window, int key, int scancode, int action, int 
     case GLFW_KEY_RIGHT:
     case GLFW_KEY_KP_6:
         input.right = pressed;
+        break;
+    case GLFW_KEY_F:
+        input.f += pressed;
+        break;
+    case GLFW_KEY_ESCAPE:
+    case GLFW_KEY_Q:
+        if (pressed && !mods)
+            glfwSetWindowShouldClose(window, GLFW_TRUE);
         break;
     }
 }
@@ -71,6 +74,14 @@ void init_input(GLFWwindow* window)
 
 void process_input(GLFWwindow *window)
 {
+    /*
+    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    GLFWvidmode* mode = glfwGetVideoMode(monitor);
+    glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+*/
+    // Reset all toggles
+    input.f = false;
+    glfwPollEvents();
     double cur_mousex, cur_mousey;
     glfwGetCursorPos(window, &cur_mousex, &cur_mousey);
     input.scroll = scroll;

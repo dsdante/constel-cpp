@@ -12,6 +12,7 @@ extern struct input {
     bool mouse_left;
     bool mouse_middle;
     bool mouse_right;
+    int f;
     double scroll;
     int panx;
     int pany;
