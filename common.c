@@ -6,11 +6,13 @@
 
 #define DEFAULT_CONFIG_FILE "constel.conf"
 #define CONFIG_GROUP "Constel"
-#define CONFIG_PARTICLES "Particles"
+#define CONFIG_STARS "Stars"
+#define CONFIG_GRAVITY "Gravity"
+#define CONFIG_EPSILON "Epsilon"
 #define CONFIG_SPEED "Speed"
 #define CONFIG_MINFPS "MinFPS"
 #define CONFIG_MAXFPS "MaxFPS"
-#define CONFIG_MULTISAMPLING "Multisampling"
+#define CONFIG_MSAA "MSAA"
 #define CONFIG_STARCOLOR "StarColor"
 #define CONFIG_TEXTCOLOR "TextColor"
 #define CONFIG_FONT "Font"
@@ -39,7 +41,9 @@ char* read_file(const char *filename, int *length)
 // ============================== Configuration ===============================
 
 struct config config = {
-    .particles = 400,
+    .stars = 400,
+    .gravity = 0.02,
+    .epsilon = 0.1,
     .speed = 2,
     .min_fps = 30,
     .max_fps = 60,
@@ -86,16 +90,20 @@ void init_config(const char* filename)
         if (*(--value_end) == '\n')
             *value_end = '\0';
 
-        if (!strncmp(key, CONFIG_PARTICLES, sizeof(CONFIG_PARTICLES)-1)) {
-            sscanf(value, "%d", &config.particles);
+        if (!strncmp(key, CONFIG_STARS, sizeof(CONFIG_STARS)-1)) {
+            sscanf(value, "%d", &config.stars);
+        } else if (!strncmp(key, CONFIG_GRAVITY, sizeof(CONFIG_GRAVITY)-1)) {
+            sscanf(value, "%lf", &config.gravity);
+        } else if (!strncmp(key, CONFIG_EPSILON, sizeof(CONFIG_EPSILON)-1)) {
+            sscanf(value, "%lf", &config.epsilon);
         } else if (!strncmp(key, CONFIG_SPEED, sizeof(CONFIG_SPEED)-1)) {
             sscanf(value, "%lf", &config.speed);
         } else if (!strncmp(key, CONFIG_MINFPS, sizeof(CONFIG_MINFPS)-1)) {
             sscanf(value, "%lf", &config.min_fps);
         } else if (!strncmp(key, CONFIG_MAXFPS, sizeof(CONFIG_MAXFPS)-1)) {
             sscanf(value, "%lf", &config.max_fps);
-        } else if (!strncmp(key, CONFIG_MULTISAMPLING, sizeof(CONFIG_MULTISAMPLING)-1)) {
-            sscanf(value, "%d", &config.multisampling);
+        } else if (!strncmp(key, CONFIG_MSAA, sizeof(CONFIG_MSAA)-1)) {
+            sscanf(value, "%d", &config.msaa);
         } else if (!strncmp(key, CONFIG_STARCOLOR, sizeof(CONFIG_STARCOLOR)-1)) {
             sscanf(value, "%f %f %f %f", &config.star_color[0], &config.star_color[1], &config.star_color[2], &config.star_color[3]);
         } else if (!strncmp(key, CONFIG_TEXTCOLOR, sizeof(CONFIG_TEXTCOLOR)-1)) {

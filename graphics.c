@@ -376,7 +376,7 @@ GLFWwindow* init_graphics()
         return NULL;
     }
     glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
-    glfwWindowHint(GLFW_SAMPLES, config.multisampling);
+    glfwWindowHint(GLFW_SAMPLES, config.msaa);
     window = glfwCreateWindow(win_width, win_height, "Constel", NULL, NULL);
     if (!window) {
         finalize_graphics();
@@ -393,6 +393,8 @@ GLFWwindow* init_graphics()
         finalize_graphics();
         return NULL;
     }
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     // Init stars
     glGenBuffers(1, &star_buffer);
@@ -445,25 +447,22 @@ void draw()
     glClear(GL_COLOR_BUFFER_BIT);
 
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), NULL);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vec2) * config.particles, pos_display, GL_STREAM_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vec2) * config.stars, pos_display, GL_STREAM_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, star_buffer);
     glInterleavedArrays(GL_V2F, 0, NULL);
     glBindBuffer(GL_ARRAY_BUFFER, star_vbo);
     glUseProgram(star_shader);
-    glDrawArraysInstanced(GL_TRIANGLES, 0, config.particles, config.particles);
+    glDrawArraysInstanced(GL_TRIANGLES, 0, config.stars, config.stars);
 
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glUseProgram(text_shader);
     glUniform4fv(text_color_uniform, 1, config.text_color);
     int y = config.text_size;
     draw_text(font, win_width - config.text_size, y, ALIGN_TOPRIGHT, "X: %.2f  Y: %.2f", view_center[0], view_center[1]);
-    if ((int)(zoom / DEFAULT_ZOOM) > 1)
+    if ((long)(zoom / DEFAULT_ZOOM) > 1)
         draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT, "Zoom: %.0fx", zoom/DEFAULT_ZOOM);
     else
         draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT, "Zoom: 1:%.0f", (float)DEFAULT_ZOOM/zoom);
-    draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT, "%.0f FPS", get_fps_period(1)+0.5);
-    glDisable(GL_BLEND);
+    draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT, "%.0f FPS", get_fps_period(1)+0.5f);
 
     glfwSwapBuffers(window);
 }

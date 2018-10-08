@@ -27,15 +27,15 @@ static double frand(double min, double max)
 
 void init_world()
 {
-    pos_display = malloc(config.particles * sizeof(vec2));
-    pos = malloc(config.particles * sizeof(vecd2));
-    speed = malloc(config.particles * sizeof(vecd2));
-    force = malloc(config.particles * sizeof(vecd2));
-    for (int i = 0; i < config.particles/2; i++) {
+    pos_display = malloc(config.stars * sizeof(vec2));
+    pos = malloc(config.stars * sizeof(vecd2));
+    speed = malloc(config.stars * sizeof(vecd2));
+    force = malloc(config.stars * sizeof(vecd2));
+    for (int i = 0; i < config.stars/2; i++) {
         pos[i] = (vecd2){ frand(-2, 2) - 3, frand(-2, 2) };
         speed[i].y = -0.5;
     }
-    for (int i = config.particles/2; i < config.particles; i++) {
+    for (int i = config.stars/2; i < config.stars; i++) {
         pos[i] = (vecd2) { frand(-2, 2) + 3, frand(-2, 2) };
         speed[i].y = 0.5;
     }
@@ -59,18 +59,16 @@ void world_frame(double time)
 {
     if (time > 1/config.min_fps)
         time = 1/config.min_fps;
-    const double g = 0.02;
-    const double epsilon = 0.1; // TODO: reduce to zero
 
-    memset(force, 0, sizeof(vecd2) * config.particles);
-    for (int i = 0; i < config.particles-1; i++) {
-        for (int k = i+1; k < config.particles; k++) {
+    memset(force, 0, sizeof(vecd2) * config.stars);
+    for (int i = 0; i < config.stars-1; i++) {
+        for (int k = i+1; k < config.stars; k++) {
             vecd2 diff = vecd2_sub(pos[k], pos[i]);
             double sqr = vecd2_sqr(diff);
             if (sqr == 0)
                 continue;
             double angle = vecd2_angle(diff);
-            double _f = g / (sqr + epsilon);
+            double _f = config.gravity / (sqr + config.epsilon);
             vecd2 f = (vecd2){ _f * cos(angle), _f * sin(angle) };
             force[i].x += f.x;
             force[i].y += f.y;
@@ -78,11 +76,11 @@ void world_frame(double time)
             force[k].y -= f.y;
         }
     }
-    for (int i = 0; i < config.particles; i++) {
+    for (int i = 0; i < config.stars; i++) {
         vecd2 _speed = (vecd2){ speed[i].x + time * config.speed * force[i].x, speed[i].y + time * config.speed * force[i].y };
         pos[i].x += time * config.speed * (speed[i].x + _speed.x) / 2;
         pos[i].y += time * config.speed * (speed[i].y + _speed.y) / 2;
         speed[i] = _speed;
     }
-    to_vec2_array(pos, pos_display, config.particles);
+    to_vec2_array(pos, pos_display, config.stars);
 }

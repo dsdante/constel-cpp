@@ -5,11 +5,13 @@
 
 extern struct config
 {
-    int particles;
+    int stars;
+    double gravity;
+    double epsilon;
     double speed;
     double min_fps;
     double max_fps;
-    int multisampling;
+    int msaa;
     vec4 star_color;
     char* font;
     double text_size;
