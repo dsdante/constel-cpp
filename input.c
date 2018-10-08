@@ -17,6 +17,7 @@ static void glfw_key(GLFWwindow* window, int key, int scancode, int action, int 
 
     switch (key) {
     case GLFW_KEY_ESCAPE:
+    case GLFW_KEY_Q:
         if (pressed && !mods)
             glfwSetWindowShouldClose(window, GLFW_TRUE);
         break;
@@ -46,6 +47,9 @@ static void glfw_mouse_button(GLFWwindow *window, int button, int action, int mo
     case GLFW_MOUSE_BUTTON_LEFT:
         input.mouse_left = pressed;
         break;
+    case GLFW_MOUSE_BUTTON_MIDDLE:
+        input.mouse_middle = pressed;
+        break;
     case GLFW_MOUSE_BUTTON_RIGHT:
         input.mouse_right = pressed;
         break;
@@ -71,7 +75,7 @@ void process_input(GLFWwindow *window)
     glfwGetCursorPos(window, &cur_mousex, &cur_mousey);
     input.scroll = scroll;
     scroll = 0;
-    if (input.mouse_left) {
+    if (input.mouse_left || input.mouse_middle) {
         input.panx = cur_mousex - mousex;
         input.pany = cur_mousey - mousey;
     } else {

@@ -14,8 +14,6 @@
 #include "linmathd.h"
 #include "world.h"
 
-#define MULTISAMPLING 8
-#define FONT "/usr/share/fonts/TTF/DejaVuSansMono.ttf"
 #define DEFAULT_ZOOM 50
 #define ZOOM_SENSITIVITY 1.2
 #define ALIGN_TOPLEFT 0
@@ -23,24 +21,11 @@
 #define ALIGN_TOPRIGHT 2
 #define ALIGN_BOTTOMRIGHT 3
 
-static GLFWwindow* window = NULL;
-static bool glfw_initialized = false;
 static int win_width = 1024;
 static int win_height = 1024;
-static bool need_update = true;
 
-static vec2 view_center = { 0, 0 };
-static float zoom = DEFAULT_ZOOM;
-static mat4x4 projection;
-static GLint projection_uniform;
-static GLuint star_shader;
-static GLuint star_buffer = 0;
-static unsigned int star_vbo = 0;
-static const GLfloat star_vertices[] = {
-    0,  0.05,
-    -0.0433,  -0.025,
-    0.0433,   -0.025,
-};
+
+// ============================== Text rendering ==============================
 
 static GLuint text_shader;
 static GLint text_coord_attrib;
@@ -75,14 +60,14 @@ static struct font
         float tx;   // x offset of glyph in texture coordinates
         float ty;   // y offset of glyph in texture coordinates
     } c[128];       // character information
-} *status_font = NULL;
+} *font = NULL;
 
 static struct font* new_font(const char* font_path, int size)
 {
     const int texture_max_width = 1024;
     FT_Face face;
-    if (FT_New_Face(ft, FONT, 0, &face)) {
-        fputs("Cannot open font '" FONT "'\n", stderr);
+    if (FT_New_Face(ft, font_path, 0, &face)) {
+        fprintf(stderr, "Cannot open font '%s'\n", font_path);
         return NULL;
     }
 
@@ -214,24 +199,26 @@ static void draw_text(struct font *font, int x, int y, int align, const char* re
     glDisableVertexAttribArray(text_coord_attrib);
 }
 
-// Must be freed by the caller
-static GLchar* read_file(const char *filename, GLint *length)
-{
-    FILE *file = fopen(filename, "r");
-    if (!file) {
-        fprintf(stderr, "Cannot open '%s': %s\n", filename, strerror(errno));
-        *length = 0;
-        return NULL;
-    }
-    fseek(file, 0, SEEK_END);
-    *length = ftell(file);
-    rewind(file);
-    GLchar* buffer = (GLchar*)malloc((*length+1)*sizeof(GLchar));
-    *length = fread(buffer, 1, *length, file);
-    fclose(file);
-    buffer[*length] = '\0';
-    return buffer;
-}
+
+// ============================= General graphics =============================
+
+static GLFWwindow* window = NULL;
+static bool glfw_initialized = false;
+static bool need_update = true;
+
+static vec2 view_center = { 0, 0 };
+static float zoom = DEFAULT_ZOOM;
+static mat4x4 projection;
+static GLint projection_uniform;
+static GLint star_color_uniform;
+static GLuint star_shader;
+static GLuint star_buffer = 0;
+static unsigned int star_vbo = 0;
+static const GLfloat star_vertices[] = {
+    0,  0.05,
+    -0.0433,  -0.025,
+    0.0433,   -0.025,
+};
 
 static void gl_log(GLuint object)
 {
@@ -350,9 +337,9 @@ static void glfw_resize(GLFWwindow* window, int width, int height)
 
 void finalize_graphics()
 {
-    if (status_font) {
-        delete_font(status_font);
-        status_font = NULL;
+    if (font) {
+        delete_font(font);
+        font = NULL;
     }
     if (star_buffer != GL_INVALID_VALUE) {
         glDeleteBuffers(1, (const GLuint[]){ star_buffer });
@@ -389,7 +376,7 @@ GLFWwindow* init_graphics()
         return NULL;
     }
     glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
-    glfwWindowHint(GLFW_SAMPLES, MULTISAMPLING);
+    glfwWindowHint(GLFW_SAMPLES, config.multisampling);
     window = glfwCreateWindow(win_width, win_height, "Constel", NULL, NULL);
     if (!window) {
         finalize_graphics();
@@ -422,6 +409,9 @@ GLFWwindow* init_graphics()
         return NULL;
     }
     projection_uniform = glGetUniformLocation(star_shader, "projection");
+    star_color_uniform = glGetUniformLocation(star_shader, "color");
+    glUseProgram(star_shader);
+    glUniform4fv(star_color_uniform, 1, config.star_color);
 
     // Init text
     glGenBuffers(1, &text_vbo);
@@ -439,8 +429,8 @@ GLFWwindow* init_graphics()
     text_projection_uniform = glGetUniformLocation(text_shader, "projection");
     text_texture_uniform = glGetUniformLocation(text_shader, "tex");
     text_color_uniform = glGetUniformLocation(text_shader, "color");
-    status_font = new_font(FONT, 16);
-    if (!status_font) {
+    font = new_font(config.font, config.text_size);
+    if (!font) {
         finalize_graphics();
         return NULL;
     }
@@ -455,24 +445,24 @@ void draw()
     glClear(GL_COLOR_BUFFER_BIT);
 
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), NULL);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vec2) * PARTICLE_COUNT, pos_display, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vec2) * config.particles, pos_display, GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, star_buffer);
     glInterleavedArrays(GL_V2F, 0, NULL);
     glBindBuffer(GL_ARRAY_BUFFER, star_vbo);
     glUseProgram(star_shader);
-    glDrawArraysInstanced(GL_TRIANGLES, 0, PARTICLE_COUNT, PARTICLE_COUNT);
+    glDrawArraysInstanced(GL_TRIANGLES, 0, config.particles, config.particles);
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glUseProgram(text_shader);
-    glUniform4fv(text_color_uniform, 1, (GLfloat[]){ 0, 1, 0, 1 });
-    int y = 20;
-    draw_text(status_font, win_width - 20, y, ALIGN_TOPRIGHT, "X: %.2f  Y: %.2f", view_center[0], view_center[1]);
+    glUniform4fv(text_color_uniform, 1, config.text_color);
+    int y = config.text_size;
+    draw_text(font, win_width - config.text_size, y, ALIGN_TOPRIGHT, "X: %.2f  Y: %.2f", view_center[0], view_center[1]);
     if ((int)(zoom / DEFAULT_ZOOM) > 1)
-        draw_text(status_font, win_width - 20, y+=25, ALIGN_TOPRIGHT, "Zoom: %.0fx", zoom/DEFAULT_ZOOM);
+        draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT, "Zoom: %.0fx", zoom/DEFAULT_ZOOM);
     else
-        draw_text(status_font, win_width - 20, y+=25, ALIGN_TOPRIGHT, "Zoom: 1:%.0f", (float)DEFAULT_ZOOM/zoom);
-    draw_text(status_font, win_width - 20, y+=25, ALIGN_TOPRIGHT, "%.0f FPS", get_fps_period(1)+0.5);
+        draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT, "Zoom: 1:%.0f", (float)DEFAULT_ZOOM/zoom);
+    draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT, "%.0f FPS", get_fps_period(1)+0.5);
     glDisable(GL_BLEND);
 
     glfwSwapBuffers(window);

@@ -15,6 +15,7 @@ void exit_finalize(int code)
     finalize_input();
     finalize_graphics();
     finalize_world();
+    finalize_config();
     exit(code);
 }
 
@@ -23,9 +24,9 @@ double frame_sleep()
 {
     static double last_time = NAN;
     if (isnan(last_time))
-        last_time = glfwGetTime() - 1.0/TARGET_FPS;
+        last_time = glfwGetTime() - 1.0/config.max_fps;
     double last_interval = glfwGetTime() - last_time;
-    double sleep_interval = 1.0/TARGET_FPS - last_interval;
+    double sleep_interval = 1.0/config.max_fps - last_interval;
     if (sleep_interval > 0) {
         double intpart;
         const struct timespec sleep_ts = { sleep_interval, 1e+9*modf(sleep_interval,&intpart) };
@@ -40,6 +41,10 @@ double frame_sleep()
 int main(int argc, char *argv[])
 {
     srand(time(NULL));
+    char* config_file = NULL;
+    if (argc >= 2)
+        config_file = argv[1];
+    init_config(config_file);
     init_world();
     GLFWwindow* window = init_graphics();
     if (!window)

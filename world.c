@@ -2,19 +2,22 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include "common.h"
 #include "linmath.h"
 #include "linmathd.h"
 #include "world.h"
 
-#define SPEED 2
-
-vec2 pos_display[PARTICLE_COUNT];
-vecd2 pos[PARTICLE_COUNT];
-vecd2 speed[PARTICLE_COUNT];
-vecd2 force[PARTICLE_COUNT];
+vec2* pos_display;
+vecd2* pos;
+vecd2* speed;
+vecd2* force;
 
 void finalize_world()
 {
+    free(pos_display);
+    free(pos);
+    free(speed);
+    free(force);
 }
 
 static double frand(double min, double max)
@@ -24,11 +27,15 @@ static double frand(double min, double max)
 
 void init_world()
 {
-    for (int i = 0; i < PARTICLE_COUNT/2; i++) {
+    pos_display = malloc(config.particles * sizeof(vec2));
+    pos = malloc(config.particles * sizeof(vecd2));
+    speed = malloc(config.particles * sizeof(vecd2));
+    force = malloc(config.particles * sizeof(vecd2));
+    for (int i = 0; i < config.particles/2; i++) {
         pos[i] = (vecd2){ frand(-2, 2) - 3, frand(-2, 2) };
         speed[i].y = -0.5;
     }
-    for (int i = PARTICLE_COUNT/2; i < PARTICLE_COUNT; i++) {
+    for (int i = config.particles/2; i < config.particles; i++) {
         pos[i] = (vecd2) { frand(-2, 2) + 3, frand(-2, 2) };
         speed[i].y = 0.5;
     }
@@ -50,12 +57,14 @@ void init_world()
 
 void world_frame(double time)
 {
+    if (time > 1/config.min_fps)
+        time = 1/config.min_fps;
     const double g = 0.02;
     const double epsilon = 0.1; // TODO: reduce to zero
 
-    memset(force, 0, sizeof(vecd2) * PARTICLE_COUNT);
-    for (int i = 0; i < PARTICLE_COUNT-1; i++) {
-        for (int k = i+1; k < PARTICLE_COUNT; k++) {
+    memset(force, 0, sizeof(vecd2) * config.particles);
+    for (int i = 0; i < config.particles-1; i++) {
+        for (int k = i+1; k < config.particles; k++) {
             vecd2 diff = vecd2_sub(pos[k], pos[i]);
             double sqr = vecd2_sqr(diff);
             if (sqr == 0)
@@ -69,11 +78,11 @@ void world_frame(double time)
             force[k].y -= f.y;
         }
     }
-    for (int i = 0; i < PARTICLE_COUNT; i++) {
-        vecd2 _speed = (vecd2){ speed[i].x + time * SPEED * force[i].x, speed[i].y + time * SPEED * force[i].y };
-        pos[i].x += time * SPEED * (speed[i].x + _speed.x) / 2;
-        pos[i].y += time * SPEED * (speed[i].y + _speed.y) / 2;
+    for (int i = 0; i < config.particles; i++) {
+        vecd2 _speed = (vecd2){ speed[i].x + time * config.speed * force[i].x, speed[i].y + time * config.speed * force[i].y };
+        pos[i].x += time * config.speed * (speed[i].x + _speed.x) / 2;
+        pos[i].y += time * config.speed * (speed[i].y + _speed.y) / 2;
         speed[i] = _speed;
     }
-    to_vec2_array(pos, pos_display, PARTICLE_COUNT);
+    to_vec2_array(pos, pos_display, config.particles);
 }

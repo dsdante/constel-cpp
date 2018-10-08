@@ -10,6 +10,7 @@ struct input {
     bool left;
     bool right;
     bool mouse_left;
+    bool mouse_middle;
     bool mouse_right;
     double scroll;
     int panx;

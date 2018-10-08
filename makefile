@@ -4,13 +4,13 @@ constel: common.o graphics.o input.o world.o
 common.o: common.c common.h
 	gcc $(CFLAGS) -c common.c
 
-graphics.o: graphics.c common.h graphics.h linmath.h
+graphics.o: graphics.c graphics.h
 	gcc $(CFLAGS) -I /usr/include/freetype2 -c graphics.c
 
 input.o: input.c input.h
 	gcc $(CFLAGS) -c input.c
 
-world.o: world.c world.h common.h linmath.h linmathd.h
+world.o: world.c world.h
 	gcc $(CFLAGS) -c world.c
 
 all: constel

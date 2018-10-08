@@ -1,12 +1,11 @@
 #version 130
 #extension GL_ARB_draw_instanced: enable
-#extension ARB_instanced_arrays: enable
 
 uniform mat4 projection;
 in vec2 aPos;
-in vec3 aColor;
+in vec4 aColor;
 in vec2 aOffset;
-out vec3 fColor;
+out vec4 fColor;
 
 void main()
 {
