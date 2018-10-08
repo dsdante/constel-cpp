@@ -1,6 +1,7 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#include <stdbool.h>
 #include "linmath.h"
 
 extern struct config
@@ -14,6 +15,7 @@ extern struct config
     double max_fps;
     int msaa;
     vec4 star_color;
+    bool show_status;
     char* font;
     double text_size;
     vec4 text_color;

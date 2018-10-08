@@ -507,15 +507,17 @@ void draw()
     glUseProgram(star_shader);
     glDrawArraysInstanced(GL_TRIANGLES, 0, config.stars, config.stars);
 
-    glUseProgram(text_shader);
-    glUniform4fv(text_color_uniform, 1, config.text_color);
-    int y = config.text_size;
-    draw_text(font, win_width - config.text_size, y, ALIGN_TOPRIGHT, "X: %.2f  Y: %.2f", view_center[0], view_center[1]);
-    if ((long)(zoom / DEFAULT_ZOOM) > 1)
-        draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT, "Zoom: %.0fx", zoom/DEFAULT_ZOOM);
-    else
-        draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT, "Zoom: 1:%.0f", (float)DEFAULT_ZOOM/zoom);
-    draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT, "%.0f FPS", get_fps_period(1)+0.5f);
+    if (config.show_status) {
+        glUseProgram(text_shader);
+        glUniform4fv(text_color_uniform, 1, config.text_color);
+        int y = config.text_size;
+        draw_text(font, win_width - config.text_size, y, ALIGN_TOPRIGHT, "X: %.2f  Y: %.2f", view_center[0], view_center[1]);
+        if ((long)(zoom / DEFAULT_ZOOM) > 1)
+            draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT, "Zoom: %.0fx", zoom/DEFAULT_ZOOM);
+        else
+            draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT, "Zoom: 1:%.0f", (float)DEFAULT_ZOOM/zoom);
+        draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT, "%.0f FPS", get_fps_period(1)+0.5f);
+    }
 
     glfwSwapBuffers(window);
 }

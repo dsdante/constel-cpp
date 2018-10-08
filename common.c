@@ -4,21 +4,21 @@
 #include <string.h>
 #include "common.h"
 
+#define FPS_BUFF_SIZE 256
 #define DEFAULT_CONFIG_FILE "constel.conf"
-#define CONFIG_GROUP "Constel"
 #define CONFIG_STARS "Stars"
 #define CONFIG_STAR_SPEED "StarSpeed"
 #define CONFIG_GRAVITY "Gravity"
 #define CONFIG_EPSILON "Epsilon"
 #define CONFIG_SPEED "Speed"
-#define CONFIG_MINFPS "MinFPS"
-#define CONFIG_MAXFPS "MaxFPS"
+#define CONFIG_MIN_FPS "MinFPS"
+#define CONFIG_MAX_FPS "MaxFPS"
 #define CONFIG_MSAA "MSAA"
-#define CONFIG_STARCOLOR "StarColor"
-#define CONFIG_TEXTCOLOR "TextColor"
+#define CONFIG_STAR_COLOR "StarColor"
+#define CONFIG_SHOW_STATUS "ShowStatus"
 #define CONFIG_FONT "Font"
-#define CONFIG_TEXTSIZE "TextSize"
-#define FPS_BUFF_SIZE 256
+#define CONFIG_TEXT_SIZE "TextSize"
+#define CONFIG_TEXT_COLOR "TextColor"
 
 // Must be freed by the caller
 char* read_file(const char *filename, int *length)
@@ -50,6 +50,7 @@ struct config config = {
     .min_fps = 30,
     .max_fps = 60,
     .star_color = (vec4){ 1, 0.8, 0, 1 },
+    .show_status = true,
     .font = "/usr/share/fonts/TTF/FreeSans.ttf",
     .text_size = 14,
     .text_color = (vec4){ 0, 1, 0, 1 },
@@ -102,20 +103,22 @@ void init_config(const char* filename)
             sscanf(value, "%lf", &config.epsilon);
         } else if (!strncmp(key, CONFIG_SPEED, sizeof(CONFIG_SPEED)-1)) {
             sscanf(value, "%lf", &config.speed);
-        } else if (!strncmp(key, CONFIG_MINFPS, sizeof(CONFIG_MINFPS)-1)) {
+        } else if (!strncmp(key, CONFIG_MIN_FPS, sizeof(CONFIG_MIN_FPS)-1)) {
             sscanf(value, "%lf", &config.min_fps);
-        } else if (!strncmp(key, CONFIG_MAXFPS, sizeof(CONFIG_MAXFPS)-1)) {
+        } else if (!strncmp(key, CONFIG_MAX_FPS, sizeof(CONFIG_MAX_FPS)-1)) {
             sscanf(value, "%lf", &config.max_fps);
         } else if (!strncmp(key, CONFIG_MSAA, sizeof(CONFIG_MSAA)-1)) {
             sscanf(value, "%d", &config.msaa);
-        } else if (!strncmp(key, CONFIG_STARCOLOR, sizeof(CONFIG_STARCOLOR)-1)) {
+        } else if (!strncmp(key, CONFIG_STAR_COLOR, sizeof(CONFIG_STAR_COLOR)-1)) {
             sscanf(value, "%f %f %f %f", &config.star_color[0], &config.star_color[1], &config.star_color[2], &config.star_color[3]);
-        } else if (!strncmp(key, CONFIG_TEXTCOLOR, sizeof(CONFIG_TEXTCOLOR)-1)) {
-            sscanf(value, "%f %f %f %f", &config.text_color[0], &config.text_color[1], &config.text_color[2], &config.text_color[3]);
+        } else if (!strncmp(key, CONFIG_SHOW_STATUS, sizeof(CONFIG_SHOW_STATUS)-1)) {
+            config.show_status = !strncmp(value, "true", 4) || !strncmp(value, "True", 4) || !strncmp(value, "1", 1);
         } else if (!strncmp(key, CONFIG_FONT, sizeof(CONFIG_FONT)-1)) {
             config.font = value;
-        } else if (!strncmp(key, CONFIG_TEXTSIZE, sizeof(CONFIG_TEXTSIZE)-1)) {
+        } else if (!strncmp(key, CONFIG_TEXT_SIZE, sizeof(CONFIG_TEXT_SIZE)-1)) {
             sscanf(value, "%lf", &config.text_size);
+        } else if (!strncmp(key, CONFIG_TEXT_COLOR, sizeof(CONFIG_TEXT_COLOR)-1)) {
+            sscanf(value, "%f %f %f %f", &config.text_color[0], &config.text_color[1], &config.text_color[2], &config.text_color[3]);
         }
     }
     fclose(file);
