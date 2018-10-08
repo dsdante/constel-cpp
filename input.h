@@ -4,7 +4,7 @@
 #include <stdbool.h>
 
 // all members must be resettable with memset(0)
-struct input {
+extern struct input {
     bool up;
     bool down;
     bool left;
@@ -15,9 +15,8 @@ struct input {
     double scroll;
     int panx;
     int pany;
-};
+} input;
 
-extern struct input input;
 void init_input(GLFWwindow* window);
 void process_input();
 void finalize_input();
