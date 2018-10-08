@@ -11,4 +11,5 @@ Debian/Ubuntu (unconfirmed):
 ## Control
 Mouse drag: pan  
 Mouse wheel: zoom  
-F: fullscreen
+F: fullscreen  
+Physical and visual options can be set in constel.conf.
