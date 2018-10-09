@@ -21,7 +21,7 @@
 #define ALIGN_TOPRIGHT 2
 #define ALIGN_BOTTOMRIGHT 3
 
-static int win_width = 1024;
+static int win_width = 1024; // actual size of the client area
 static int win_height = 1024;
 
 
@@ -200,7 +200,7 @@ static void draw_text(struct font *font, int x, int y, int align, const char* re
 }
 
 
-// ============================= General graphics =============================
+// ============================= Window functions =============================
 
 static bool glfw_initialized = false;
 static GLFWwindow* window = NULL;
@@ -211,6 +211,63 @@ static int restored_y;
 static int restored_width = 1024;
 static int restored_height = 1024;
 static bool need_update_view = true;
+
+static void update_window()
+{
+    bool toggle_fullscreen = input.double_click || input.f % 2;
+    bool toggle_maximize = (maximized != glfwGetWindowAttrib(window, GLFW_MAXIMIZED));
+
+    if (toggle_fullscreen) {
+        fullscreen = !fullscreen;
+        GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+        const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+        if (fullscreen) {
+            if (!maximized) {
+                glfwGetWindowPos(window, &restored_x, &restored_y);
+                glfwGetWindowSize(window, &restored_width, &restored_height);
+            }
+            glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+        } else {
+            glfwSetWindowMonitor(window, NULL, restored_x, restored_y, restored_width, restored_height, mode->refreshRate);
+            if (maximized)
+                glfwMaximizeWindow(window);
+        }
+    }
+    if (toggle_maximize && !fullscreen) {
+        maximized = !maximized;
+        if (!maximized) {
+            glfwSetWindowPos(window, restored_x, restored_y);
+            glfwSetWindowSize(window, restored_width, restored_height);
+        }
+    }
+    if (!fullscreen && !maximized && !toggle_maximize) { // if just moving around, track resotred size/position
+        glfwGetWindowPos(window, &restored_x, &restored_y);
+        glfwGetWindowSize(window, &restored_width, &restored_height);
+    }
+    if (toggle_fullscreen || toggle_maximize)
+        need_update_view = true;
+}
+
+static void glfw_error(int error, const char* description)
+{
+    fprintf(stderr, "GLFW error: %s\n", description);
+}
+
+static void glfw_move(GLFWwindow* window, int xpos, int ypos)
+{
+    update_window();
+}
+
+static void glfw_resize(GLFWwindow* window, int width, int height)
+{
+    win_width = width;
+    win_height = height;
+    update_window();
+    need_update_view = true;
+}
+
+
+// ============================= General graphics =============================
 
 static vec2 view_center = { 0, 0 };
 static float zoom = DEFAULT_ZOOM;
@@ -229,19 +286,19 @@ static const GLfloat star_vertices[] = {
 static void gl_log(GLuint object)
 {
     GLint log_length = 0;
-    if (glIsShader(object))
-      glGetShaderiv(object, GL_INFO_LOG_LENGTH, &log_length);
-    else if (glIsProgram(object))
-      glGetProgramiv(object, GL_INFO_LOG_LENGTH, &log_length);
-    else {
-      fputs("gl_log: not a shader or a text_shader\n", stderr);
-      return;
+    if (glIsShader(object)) {
+        glGetShaderiv(object, GL_INFO_LOG_LENGTH, &log_length);
+    } else if (glIsProgram(object)) {
+        glGetProgramiv(object, GL_INFO_LOG_LENGTH, &log_length);
+    } else {
+        fputs("gl_log: not a shader or a text_shader\n", stderr);
+        return;
     }
     GLchar* log = (GLchar*)malloc(log_length);
     if (glIsShader(object))
-      glGetShaderInfoLog(object, log_length, NULL, log);
+        glGetShaderInfoLog(object, log_length, NULL, log);
     else if (glIsProgram(object))
-      glGetProgramInfoLog(object, log_length, NULL, log);
+        glGetProgramInfoLog(object, log_length, NULL, log);
     fprintf(stderr, "%s\n", log);
     free(log);
 }
@@ -294,42 +351,6 @@ static GLuint make_shader_program(const char *vertex_file, const char *fragment_
     return program;
 }
 
-static void update_window()
-{
-    bool toggle_fullscreen = input.double_click || input.f % 2;
-    bool toggle_maximize = (maximized != glfwGetWindowAttrib(window, GLFW_MAXIMIZED));
-
-    if (toggle_fullscreen) {
-        fullscreen = !fullscreen;
-        GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-        const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-        if (fullscreen) {
-            if (!maximized) {
-                glfwGetWindowPos(window, &restored_x, &restored_y);
-                glfwGetWindowSize(window, &restored_width, &restored_height);
-            }
-            glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
-        } else {
-            glfwSetWindowMonitor(window, NULL, restored_x, restored_y, restored_width, restored_height, mode->refreshRate);
-            if (maximized)
-                glfwMaximizeWindow(window);
-        }
-    }
-    if (toggle_maximize && !fullscreen) {
-        maximized = !maximized;
-        if (!maximized) {
-            glfwSetWindowPos(window, restored_x, restored_y);
-            glfwSetWindowSize(window, restored_width, restored_height);
-        }
-    }
-    if (!fullscreen && !maximized && !toggle_maximize) { // if just moving around, track resotred size/position
-        glfwGetWindowPos(window, &restored_x, &restored_y);
-        glfwGetWindowSize(window, &restored_width, &restored_height);
-    }
-    if (toggle_fullscreen || toggle_maximize)
-        need_update_view = true;
-}
-
 static void update_view()
 {
     need_update_view = false;
@@ -363,24 +384,6 @@ static void update_view()
     mat4x4_ortho(text_projection, 0, win_width, 0, win_height, -1, 1);
     glUseProgram(text_shader);
     glUniformMatrix4fv(text_projection_uniform, 1, GL_FALSE, (const GLfloat*)text_projection);
-}
-
-static void glfw_error(int error, const char* description)
-{
-    fprintf(stderr, "GLFW error: %s\n", description);
-}
-
-static void glfw_move(GLFWwindow* window, int xpos, int ypos)
-{
-    update_window();
-}
-
-static void glfw_resize(GLFWwindow* window, int width, int height)
-{
-    win_width = width;
-    win_height = height;
-    update_window();
-    need_update_view = true;
 }
 
 void finalize_graphics()
@@ -466,25 +469,27 @@ GLFWwindow* init_graphics()
     glUniform4fv(star_color_uniform, 1, config.star_color);
 
     // Init text
-    glGenBuffers(1, &text_vbo);
-    if (FT_Init_FreeType(&ft)) {
-        fputs("FT_Init_FreeType failed\n", stderr);
-        finalize_graphics();
-        return NULL;
-    }
-    text_shader = make_shader_program("text.vert", "text.frag");
-    if(text_shader == 0) {
-        finalize_graphics();
-        return NULL;
-    }
-    text_coord_attrib = glGetAttribLocation(text_shader, "coord");
-    text_projection_uniform = glGetUniformLocation(text_shader, "projection");
-    text_texture_uniform = glGetUniformLocation(text_shader, "tex");
-    text_color_uniform = glGetUniformLocation(text_shader, "color");
-    font = new_font(config.font, config.text_size);
-    if (!font) {
-        finalize_graphics();
-        return NULL;
+    if (config.show_status) {
+        glGenBuffers(1, &text_vbo);
+        if (FT_Init_FreeType(&ft)) {
+            fputs("FT_Init_FreeType failed\n", stderr);
+            finalize_graphics();
+            return NULL;
+        }
+        text_shader = make_shader_program("text.vert", "text.frag");
+        if(text_shader == 0) {
+            finalize_graphics();
+            return NULL;
+        }
+        text_coord_attrib = glGetAttribLocation(text_shader, "coord");
+        text_projection_uniform = glGetUniformLocation(text_shader, "projection");
+        text_texture_uniform = glGetUniformLocation(text_shader, "tex");
+        text_color_uniform = glGetUniformLocation(text_shader, "color");
+        font = new_font(config.font, config.text_size);
+        if (!font) {
+            finalize_graphics();
+            return NULL;
+        }
     }
 
     return window;

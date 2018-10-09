@@ -7,7 +7,7 @@
 #include "linmathd.h"
 #include "world.h"
 
-vec2* pos_display;
+vec2* pos_display; // display values, float
 vecd2* pos;
 vecd2* speed;
 vecd2* force;
@@ -62,6 +62,7 @@ void world_frame(double time)
     if (time > 1/config.min_fps)
         time = 1/config.min_fps;
 
+    // Calculate forces
     memset(force, 0, sizeof(vecd2) * config.stars);
     for (int i = 0; i < config.stars-1; i++) {
         for (int k = i+1; k < config.stars; k++) {
@@ -78,6 +79,8 @@ void world_frame(double time)
             force[k].y -= f.y;
         }
     }
+
+    // Calculate speed and coordinates
     for (int i = 0; i < config.stars; i++) {
         vecd2 _speed = (vecd2){ speed[i].x + time * config.speed * force[i].x, speed[i].y + time * config.speed * force[i].y };
         pos[i].x += time * config.speed * (speed[i].x + _speed.x) / 2;

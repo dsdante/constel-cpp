@@ -7,13 +7,13 @@
 extern struct config
 {
     int stars;
-    double star_speed;
+    double star_speed;  // star starting speed factor
     double gravity;
-    double epsilon;
-    double speed;
-    double min_fps;
+    double epsilon;  // minimum effective distance
+    double speed;  // simulation speed factor
+    double min_fps;  // maximum sumulation frame = 1/FPS
     double max_fps;
-    int msaa;
+    int msaa;  // anti-alisaing samples
     vec4 star_color;
     bool show_status;
     char* font;
@@ -22,8 +22,8 @@ extern struct config
 } config;
 
 char* read_file(const char *filename, int *length);
-void finalize_config();
 void init_config(const char* filename);
+void finalize_config();
 float get_fps(int frame);
 float get_fps_period(float period);
 void set_fps(float value);

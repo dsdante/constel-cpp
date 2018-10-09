@@ -50,8 +50,8 @@ static void glfw_key(GLFWwindow* window, int key, int scancode, int action, int 
 static void glfw_mouse_button(GLFWwindow *window, int button, int action, int mods)
 {
     static double double_click_start = -INFINITY;
-    static double clickx = NAN;
-    static double clicky = NAN;
+    static double clickx = 0;
+    static double clicky = 0;
 
     bool pressed = (action == GLFW_PRESS);
     double cur_mousex, cur_mousey;
@@ -80,7 +80,6 @@ static void glfw_mouse_button(GLFWwindow *window, int button, int action, int mo
         input.mouse_right = pressed;
         break;
     }
-
 }
 
 static void glfw_scroll(GLFWwindow *window, double xoffset, double yoffset)
@@ -105,7 +104,9 @@ void process_input(GLFWwindow *window)
     input.scroll = 0;
     input.double_click = false;
     input.f = false;
+
     glfwPollEvents();
+
     double mousex, mousey;
     glfwGetCursorPos(window, &mousex, &mousey);
     if (input.mouse_left || input.mouse_middle) {
