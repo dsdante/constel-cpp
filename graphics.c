@@ -14,7 +14,7 @@
 #include "linmathd.h"
 #include "world.h"
 
-#define DEFAULT_ZOOM 50
+#define DEFAULT_ZOOM 20
 #define ZOOM_SENSITIVITY 1.2
 #define ALIGN_TOPLEFT 0
 #define ALIGN_BOTTOMLEFT 1
@@ -27,13 +27,13 @@ static int win_height = 1024;
 
 // ============================== Text rendering ==============================
 
-static GLuint text_shader;
+static GLuint text_shader = GL_INVALID_VALUE;
 static GLint text_coord_attrib;
 static GLint text_texture_uniform;
 static GLint text_color_uniform;
 static GLint text_projection_uniform;
 static mat4x4 text_projection;
-static GLuint text_vbo = 0;
+static GLuint text_vbo = GL_INVALID_VALUE;
 static FT_Library ft;
 
 struct font_point {
@@ -274,9 +274,9 @@ static float zoom = DEFAULT_ZOOM;
 static mat4x4 projection;
 static GLint projection_uniform;
 static GLint star_color_uniform;
-static GLuint star_shader;
-static GLuint star_buffer = 0;
-static unsigned int star_vbo = 0;
+static GLuint star_shader = GL_INVALID_VALUE;
+static GLuint star_buffer = GL_INVALID_VALUE;
+static GLuint star_vbo = GL_INVALID_VALUE;
 static const GLfloat star_vertices[] = {
     0,  0.05,
     -0.0433,  -0.025,
@@ -330,13 +330,13 @@ static GLuint make_shader_program(const char *vertex_file, const char *fragment_
     if (vertex_file) {
         GLuint shader = make_shader(GL_VERTEX_SHADER, vertex_file);
         if (!shader)
-            return 0;
+            return GL_INVALID_VALUE;
         glAttachShader(program, shader);
     }
     if (fragment_file) {
         GLuint shader = make_shader(GL_FRAGMENT_SHADER, fragment_file);
         if(!shader)
-            return 0;
+            return GL_INVALID_VALUE;
         glAttachShader(program, shader);
     }
     glLinkProgram(program);
@@ -346,7 +346,7 @@ static GLuint make_shader_program(const char *vertex_file, const char *fragment_
         fputs("Shader linking failed:\n", stderr);
         gl_log(program);
         glDeleteProgram(program);
-        return 0;
+        return GL_INVALID_VALUE;
     }
     return program;
 }
@@ -404,8 +404,14 @@ void finalize_graphics()
         glDeleteBuffers(1, (const GLuint[]){ text_vbo });
         text_vbo = GL_INVALID_VALUE;
     }
-    glDeleteProgram(star_shader);
-    glDeleteProgram(text_shader);
+    if (star_shader != GL_INVALID_VALUE) {
+        glDeleteProgram(star_shader);
+        star_shader = GL_INVALID_VALUE;
+    }
+    if (text_shader != GL_INVALID_VALUE) {
+        glDeleteProgram(text_shader);
+        text_shader = GL_INVALID_VALUE;
+    }
     if (window) {
         glfwDestroyWindow(window);
         window = NULL;
@@ -422,7 +428,6 @@ GLFWwindow* init_graphics()
     glfwSetErrorCallback(glfw_error);
     glfw_initialized = glfwInit();
     if (!glfw_initialized) {
-        fputs("glfwInit failed\n", stderr);
         finalize_graphics();
         return NULL;
     }
@@ -466,7 +471,7 @@ GLFWwindow* init_graphics()
     projection_uniform = glGetUniformLocation(star_shader, "projection");
     star_color_uniform = glGetUniformLocation(star_shader, "color");
     glUseProgram(star_shader);
-    glUniform4fv(star_color_uniform, 1, config.star_color);
+    glUniform4fv(star_color_uniform, 1, *config.star_color);
 
     // Init text
     if (config.show_status) {
@@ -514,7 +519,7 @@ void draw()
 
     if (config.show_status) {
         glUseProgram(text_shader);
-        glUniform4fv(text_color_uniform, 1, config.text_color);
+        glUniform4fv(text_color_uniform, 1, *config.text_color);
         int y = config.text_size;
         draw_text(font, win_width - config.text_size, y, ALIGN_TOPRIGHT, "X: %.2f  Y: %.2f", view_center[0], view_center[1]);
         if ((long)(zoom / DEFAULT_ZOOM) > 1)

@@ -1,4 +1,5 @@
 #include <errno.h>
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -41,6 +42,8 @@ char* read_file(const char *filename, int *length)
 
 // ============================== Configuration ===============================
 
+static float star_color[] = { 1, 0.8, 0, 1 };
+static float text_color[] = { 0, 1, 0, 1 };
 struct config config = {
     .stars = 400,
     .star_speed = 0.55,
@@ -49,11 +52,11 @@ struct config config = {
     .speed = 2,
     .min_fps = 30,
     .max_fps = 60,
-    .star_color = (vec4){ 1, 0.8, 0, 1 },
+    .star_color = &star_color,
     .show_status = true,
     .font = "/usr/share/fonts/TTF/FreeSans.ttf",
     .text_size = 14,
-    .text_color = (vec4){ 0, 1, 0, 1 },
+    .text_color = &text_color,
 };
 
 char* config_lines[1024] = { NULL };
@@ -110,7 +113,7 @@ void init_config(const char* filename)
         } else if (!strncmp(key, CONFIG_MSAA, sizeof(CONFIG_MSAA)-1)) {
             sscanf(value, "%d", &config.msaa);
         } else if (!strncmp(key, CONFIG_STAR_COLOR, sizeof(CONFIG_STAR_COLOR)-1)) {
-            sscanf(value, "%f %f %f %f", &config.star_color[0], &config.star_color[1], &config.star_color[2], &config.star_color[3]);
+            sscanf(value, "%f %f %f %f", &star_color[0], &star_color[1], &star_color[2], &star_color[3]);
         } else if (!strncmp(key, CONFIG_SHOW_STATUS, sizeof(CONFIG_SHOW_STATUS)-1)) {
             config.show_status = !strncmp(value, "true", 4) || !strncmp(value, "True", 4) || !strncmp(value, "1", 1);
         } else if (!strncmp(key, CONFIG_FONT, sizeof(CONFIG_FONT)-1)) {
@@ -118,7 +121,7 @@ void init_config(const char* filename)
         } else if (!strncmp(key, CONFIG_TEXT_SIZE, sizeof(CONFIG_TEXT_SIZE)-1)) {
             sscanf(value, "%lf", &config.text_size);
         } else if (!strncmp(key, CONFIG_TEXT_COLOR, sizeof(CONFIG_TEXT_COLOR)-1)) {
-            sscanf(value, "%f %f %f %f", &config.text_color[0], &config.text_color[1], &config.text_color[2], &config.text_color[3]);
+            sscanf(value, "%f %f %f %f", &text_color[0], &text_color[1], &text_color[2], &text_color[3]);
         }
     }
     fclose(file);

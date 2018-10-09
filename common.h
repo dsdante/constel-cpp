@@ -14,11 +14,11 @@ extern struct config
     double min_fps;  // maximum sumulation frame = 1/FPS
     double max_fps;
     int msaa;  // anti-alisaing samples
-    vec4 star_color;
+    vec4* star_color;
     bool show_status;
     char* font;
     double text_size;
-    vec4 text_color;
+    vec4* text_color;
 } config;
 
 char* read_file(const char *filename, int *length);
