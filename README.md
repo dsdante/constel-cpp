@@ -9,7 +9,7 @@ Debian/Ubuntu (presumed):
 \# apt-get install libglew-dev libglfw3-dev libfreetype6-dev
 
 ## Control
-Mouse drag: pan  
+Mouse dragging: pan  
 Mouse wheel: zoom  
 F: fullscreen  
 Physical and visual options can be set in constel.conf.
