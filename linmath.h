@@ -1,3 +1,5 @@
+// Taken from https://github.com/datenwolf/linmath.h
+
 #ifndef LINMATH_H
 #define LINMATH_H
 

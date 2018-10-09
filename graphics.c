@@ -62,6 +62,7 @@ static struct font
     } c[128];       // character information
 } *font = NULL;
 
+// Inspired by https://en.wikibooks.org/wiki/OpenGL_Programming/Modern_OpenGL_Tutorial_Text_Rendering_02
 static struct font* new_font(const char* font_path, int size)
 {
     const int texture_max_width = 1024;
@@ -124,7 +125,8 @@ static struct font* new_font(const char* font_path, int size)
             rowh = 0;
             ox = 0;
         }
-        glTexSubImage2D(GL_TEXTURE_2D, 0, ox, oy, g->bitmap.width, g->bitmap.rows, GL_ALPHA, GL_UNSIGNED_BYTE, g->bitmap.buffer);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, ox, oy, g->bitmap.width, g->bitmap.rows,
+                GL_ALPHA, GL_UNSIGNED_BYTE, g->bitmap.buffer);
         font->c[i].dx = g->advance.x >> 6;
         font->c[i].dy = g->advance.y >> 6;
         font->c[i].w = g->bitmap.width;
@@ -212,6 +214,7 @@ static int restored_width = 1024;
 static int restored_height = 1024;
 static bool need_update_view = true;
 
+// Dealing with window state changes
 static void update_window()
 {
     bool toggle_fullscreen = input.double_click || input.f % 2;
@@ -240,7 +243,8 @@ static void update_window()
             glfwSetWindowSize(window, restored_width, restored_height);
         }
     }
-    if (!fullscreen && !maximized && !toggle_maximize) { // if just moving around, track resotred size/position
+    // If just moving around, track resotred size/position
+    if (!fullscreen && !maximized && !toggle_maximize) {
         glfwGetWindowPos(window, &restored_x, &restored_y);
         glfwGetWindowSize(window, &restored_width, &restored_height);
     }
@@ -283,6 +287,7 @@ static const GLfloat star_vertices[] = {
     0.0433,   -0.025,
 };
 
+// Log the last error associated with the object
 static void gl_log(GLuint object)
 {
     GLint log_length = 0;
@@ -351,6 +356,7 @@ static GLuint make_shader_program(const char *vertex_file, const char *fragment_
     return program;
 }
 
+// Client area needs recalculation
 static void update_view()
 {
     need_update_view = false;
@@ -365,7 +371,8 @@ static void update_view()
         glfwGetCursorPos(window, &mouse.x, &mouse.y);
         mouse.x = mouse.x - 0.5*win_width;
         mouse.y = 0.5*win_height - mouse.y;
-        view_center[0] += (float)mouse.x * (1/zoom - 1/new_zoom); // keep the coordinate under mouse when zooming
+        // Preserve the world coordinate under mouse when zooming
+        view_center[0] += (float)mouse.x * (1/zoom - 1/new_zoom);
         view_center[1] += (float)mouse.y * (1/zoom - 1/new_zoom);
         zoom = new_zoom;
     }
@@ -388,10 +395,6 @@ static void update_view()
 
 void finalize_graphics()
 {
-    if (font) {
-        delete_font(font);
-        font = NULL;
-    }
     if (star_buffer != GL_INVALID_VALUE) {
         glDeleteBuffers(1, (const GLuint[]){ star_buffer });
         star_buffer = GL_INVALID_VALUE;
@@ -411,6 +414,10 @@ void finalize_graphics()
     if (text_shader != GL_INVALID_VALUE) {
         glDeleteProgram(text_shader);
         text_shader = GL_INVALID_VALUE;
+    }
+    if (font) {
+        delete_font(font);
+        font = NULL;
     }
     if (window) {
         glfwDestroyWindow(window);
@@ -502,13 +509,14 @@ GLFWwindow* init_graphics()
 
 void draw()
 {
+    // Update window and client area state
     if (input.double_click || input.f % 2 || (maximized != glfwGetWindowAttrib(window, GLFW_MAXIMIZED)))
         update_window();
     if (need_update_view || input.scroll || input.panx || input.pany)
         update_view();
-
     glClear(GL_COLOR_BUFFER_BIT);
 
+    // Draw stars
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), NULL);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vec2) * config.stars, pos_display, GL_STREAM_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, star_buffer);
@@ -517,16 +525,21 @@ void draw()
     glUseProgram(star_shader);
     glDrawArraysInstanced(GL_TRIANGLES, 0, config.stars, config.stars);
 
+    // Draw text
     if (config.show_status) {
         glUseProgram(text_shader);
         glUniform4fv(text_color_uniform, 1, *config.text_color);
         int y = config.text_size;
-        draw_text(font, win_width - config.text_size, y, ALIGN_TOPRIGHT, "X: %.2f  Y: %.2f", view_center[0], view_center[1]);
+        draw_text(font, win_width - config.text_size, y, ALIGN_TOPRIGHT,
+                "X: %.2f  Y: %.2f", view_center[0], view_center[1]);
         if ((long)(zoom / DEFAULT_ZOOM) > 1)
-            draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT, "Zoom: %.0fx", zoom/DEFAULT_ZOOM);
+            draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT,
+                    "Zoom: %.0fx", zoom/DEFAULT_ZOOM);
         else
-            draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT, "Zoom: 1:%.0f", (float)DEFAULT_ZOOM/zoom);
-        draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT, "%.0f FPS", get_fps_period(1)+0.5f);
+            draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT,
+                    "Zoom: 1:%.0f", (float)DEFAULT_ZOOM/zoom);
+        draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT,
+                "%.0f FPS", get_fps_period(1)+0.5f);
     }
 
     glfwSwapBuffers(window);

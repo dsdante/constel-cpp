@@ -1,5 +1,5 @@
-#include <errno.h>
 #define _GNU_SOURCE
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -115,7 +115,9 @@ void init_config(const char* filename)
         } else if (!strncmp(key, CONFIG_STAR_COLOR, sizeof(CONFIG_STAR_COLOR)-1)) {
             sscanf(value, "%f %f %f %f", &star_color[0], &star_color[1], &star_color[2], &star_color[3]);
         } else if (!strncmp(key, CONFIG_SHOW_STATUS, sizeof(CONFIG_SHOW_STATUS)-1)) {
-            config.show_status = !strncmp(value, "true", 4) || !strncmp(value, "True", 4) || !strncmp(value, "1", 1);
+            config.show_status = !strncmp(value, "true", 4)
+                              || !strncmp(value, "True", 4)
+                              || !strncmp(value, "1", 1);
         } else if (!strncmp(key, CONFIG_FONT, sizeof(CONFIG_FONT)-1)) {
             config.font = value;
         } else if (!strncmp(key, CONFIG_TEXT_SIZE, sizeof(CONFIG_TEXT_SIZE)-1)) {

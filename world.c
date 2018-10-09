@@ -35,7 +35,8 @@ void init_world()
         double d = frand(0, 3);
         double dir = frand(0, 2*M_PI);
         pos[i] = (vecd2){ d * cos(dir), d * sin(dir) };
-        speed[i] = (vecd2){ config.star_speed * pow(d, 0.25) * sin(dir), -config.star_speed * pow(d, 0.25) * cos(dir) };
+        speed[i] = (vecd2){ config.star_speed * pow(d, 0.25) * sin(dir),
+                           -config.star_speed * pow(d, 0.25) * cos(dir) };
     }
     /*
     config.stars = 3;
@@ -82,7 +83,8 @@ void world_frame(double time)
 
     // Calculate speed and coordinates
     for (int i = 0; i < config.stars; i++) {
-        vecd2 _speed = (vecd2){ speed[i].x + time * config.speed * force[i].x, speed[i].y + time * config.speed * force[i].y };
+        vecd2 _speed = (vecd2){ speed[i].x + time * config.speed * force[i].x,
+                                speed[i].y + time * config.speed * force[i].y };
         pos[i].x += time * config.speed * (speed[i].x + _speed.x) / 2;
         pos[i].y += time * config.speed * (speed[i].y + _speed.y) / 2;
         speed[i] = _speed;

@@ -1,3 +1,5 @@
+// Linear algebra, double precision
+
 #ifndef LINMATHD_H
 #define LINMATHD_H
 
