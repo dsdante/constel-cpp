@@ -296,7 +296,7 @@ static GLuint make_shader_program(const char *vertex_file, const char *fragment_
 
 static void update_window()
 {
-    bool toggle_fullscreen = input.f % 2;
+    bool toggle_fullscreen = input.double_click || input.f % 2;
     bool toggle_maximize = (maximized != glfwGetWindowAttrib(window, GLFW_MAXIMIZED));
 
     if (toggle_fullscreen) {
@@ -492,7 +492,7 @@ GLFWwindow* init_graphics()
 
 void draw()
 {
-    if (input.f % 2 || (maximized != glfwGetWindowAttrib(window, GLFW_MAXIMIZED)))
+    if (input.double_click || input.f % 2 || (maximized != glfwGetWindowAttrib(window, GLFW_MAXIMIZED)))
         update_window();
     if (need_update_view || input.scroll || input.panx || input.pany)
         update_view();
