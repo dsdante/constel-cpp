@@ -1,15 +1,20 @@
 # Constel
 A galaxy model
 
-## Requirements
+### Requirements
 Arch Linux:  
 \# pacman -S glew glfw-x11 freetype2
 
 Debian/Ubuntu (presumed):  
 \# apt-get install libglew-dev libglfw3-dev libfreetype6-dev
 
-## Control
+### Control
 Mouse dragging: pan  
 Mouse wheel: zoom  
 F: fullscreen  
 Physical and visual options can be set in constel.conf.
+
+### To do
+ * Barnes–Hut simulation
+ * Mean field method
+ * Fancy effects
