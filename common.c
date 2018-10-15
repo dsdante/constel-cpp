@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "common.h"
+#include "linmath.h"
 
 #define FPS_BUFF_SIZE 256
 #define DEFAULT_CONFIG_FILE "constel.conf"
@@ -11,6 +12,7 @@
 #define CONFIG_STAR_SPEED "StarSpeed"
 #define CONFIG_GRAVITY "Gravity"
 #define CONFIG_EPSILON "Epsilon"
+#define CONFIG_ACCURACY "Accuracy"
 #define CONFIG_SPEED "Speed"
 #define CONFIG_MIN_FPS "MinFPS"
 #define CONFIG_MAX_FPS "MaxFPS"
@@ -20,6 +22,8 @@
 #define CONFIG_FONT "Font"
 #define CONFIG_TEXT_SIZE "TextSize"
 #define CONFIG_TEXT_COLOR "TextColor"
+
+vec2* disp_stars; // display values, float
 
 // Must be freed by the caller
 char* read_file(const char *filename, int *length)
@@ -49,6 +53,7 @@ struct config config = {
     .star_speed = 0.55,
     .gravity = 0.004,
     .epsilon = 0.5,
+    .accuracy = 1,
     .speed = 2,
     .min_fps = 30,
     .max_fps = 60,
@@ -104,6 +109,8 @@ void init_config(const char* filename)
             sscanf(value, "%lf", &config.gravity);
         } else if (!strncmp(key, CONFIG_EPSILON, sizeof(CONFIG_EPSILON)-1)) {
             sscanf(value, "%lf", &config.epsilon);
+        } else if (!strncmp(key, CONFIG_ACCURACY, sizeof(CONFIG_ACCURACY)-1)) {
+            sscanf(value, "%lf", &config.accuracy);
         } else if (!strncmp(key, CONFIG_SPEED, sizeof(CONFIG_SPEED)-1)) {
             sscanf(value, "%lf", &config.speed);
         } else if (!strncmp(key, CONFIG_MIN_FPS, sizeof(CONFIG_MIN_FPS)-1)) {
@@ -129,8 +136,12 @@ void init_config(const char* filename)
     fclose(file);
 }
 
-// =============================== FPS counter ================================
 
+// =========================== Performance counters ===========================
+
+double perf_build;
+double perf_accel;
+double perf_draw;
 static float fps_history[FPS_BUFF_SIZE];
 static int fps_count = 0;
 static int fps_pointer = 0;

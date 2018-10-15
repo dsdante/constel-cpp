@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include "linmath.h"
 
-extern vec2* pos_display;
+extern vec2* disp_stars;
 
 void init_world();
 void world_frame(double time);

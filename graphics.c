@@ -509,6 +509,7 @@ GLFWwindow* init_graphics()
 
 void draw()
 {
+    double perf_draw_start = glfwGetTime();
     // Update window and client area state
     if (input.double_click || input.f % 2 || (maximized != glfwGetWindowAttrib(window, GLFW_MAXIMIZED)))
         update_window();
@@ -518,7 +519,7 @@ void draw()
 
     // Draw stars
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), NULL);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vec2) * config.stars, pos_display, GL_STREAM_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vec2) * config.stars, disp_stars, GL_STREAM_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, star_buffer);
     glInterleavedArrays(GL_V2F, 0, NULL);
     glBindBuffer(GL_ARRAY_BUFFER, star_vbo);
@@ -540,7 +541,14 @@ void draw()
                     "Zoom: 1:%.0f", (float)DEFAULT_ZOOM/zoom);
         draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT,
                 "%.0f FPS", get_fps_period(1)+0.5f);
+        draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT,
+                "Build: %.0f ms", 1000*perf_build);
+        draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT,
+                "Acceleration: %.0f ms", 1000*perf_accel);
+        draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT,
+                "Drawing: %.0f ms", 1000*perf_draw);
     }
 
     glfwSwapBuffers(window);
+    perf_draw = glfwGetTime() - perf_draw_start;
 }

@@ -15,6 +15,7 @@ extern struct config
     double star_speed;  // star starting speed factor
     double gravity;
     double epsilon;  // minimum effective distance
+    double accuracy;  // minimum effective distance
     double speed;  // simulation speed factor
     double min_fps;  // maximum sumulation frame = 1/FPS
     double max_fps;
@@ -25,6 +26,11 @@ extern struct config
     double text_size;
     vec4* text_color;
 } config;
+
+extern vec2* disp_stars;
+extern double perf_build;
+extern double perf_accel;
+extern double perf_draw;
 
 char* read_file(const char *filename, int *length);
 void init_config(const char* filename);
