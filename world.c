@@ -38,7 +38,6 @@ struct quad
     struct node* children[4];
 } *quads;
 
-size_t quads_alloc;  // current buffer size
 
 void finalize_world()
 {
@@ -64,12 +63,12 @@ void init_world()
 {
     assert(config.stars > 1);
     stars = calloc(config.stars, sizeof(struct star));
-    quads_alloc = 2 * config.stars;
-    quads = calloc(quads_alloc, sizeof(struct quad));
+    quads = calloc(2 * config.stars, sizeof(struct quad));  // TODO: dynamic reallocation
     disp_stars = malloc(config.stars * sizeof(vec2));
 
+    double rmax = sqrt(config.stars)/7;
     for (int i = 0; i < config.stars; i++) {
-        double r = frand(0, 6);
+        double r = frand(0, rmax);
         double dir = frand(0, 2*M_PI);
         stars[i].x = r * cos(dir);
         stars[i].y = r * sin(dir);
@@ -77,7 +76,7 @@ void init_world()
         stars[i].speed_y = -config.star_speed * pow(r, 0.25) * cos(dir);
         stars[i].mass = frand(0.5, 1.5);
     }
-    qsort(stars, config.stars, sizeof(struct star), mass_ascending); // increases accumulating accuracy
+    qsort(stars, config.stars, sizeof(struct star), mass_ascending);  // increases accumulation accuracy
     /*
     config.stars = 3;
     stars[0].x = 0.1;
@@ -131,7 +130,7 @@ void world_frame(double time)
 
 
     //************************
-    // Build Barnes-Hut quad
+    // Build Barnes-Hut qtree
     //************************
 
     perf_build = glfwGetTime();
@@ -170,14 +169,6 @@ void world_frame(double time)
             if (quad->children[quadrant] == NULL) {
                 quad->children[quadrant] = (struct node*)star;
             } else if (quad->children[quadrant]->size == 0) {
-                // Allocate a deeper quad for previously added star
-                if (quad_count == quads_alloc) {
-                    quads_alloc *= 2;
-                    quads = realloc(quads, quads_alloc * sizeof(struct quad));
-                    if (!quads)
-                        fprintf(stderr, "Failed to allocate %lu bytes of memory", quads_alloc * sizeof(struct quad));
-                    memset(quads + quad_count, 0, quad_count * sizeof(struct quad));
-                }
                 struct star* old_star = (struct star*)(quad->children[quadrant]);
                 struct quad* new_quad = &quads[quad_count];
                 quad_count++;
