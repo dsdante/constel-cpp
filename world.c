@@ -35,7 +35,7 @@ struct quad
     double geom_x; // geometrical center
     double geom_y;
     double mass_offset;  // distance betwen mass and geometrical center
-    struct node* children[4];
+    struct quad* children[4];
 } *quads;
 
 
@@ -96,19 +96,18 @@ void init_world()
 
 void update_speed(struct star* star, struct quad* node, double time)
 {
-    if ((void*)star == (void*)node)
-        return;
     double dx = node->x - star->x;
     double dy = node->y - star->y;
-    if (sqrt(dx*dx + dy*dy) >= node->size * config.accuracy) {
+    double distance_sqr = dx*dx + dy*dy;
+    if (sqrt(distance_sqr) >= node->size * config.accuracy) {
         double angle = atan2(dy, dx);
-        double accel = time * config.gravity * node->mass / (dx*dx + dy*dy + config.epsilon);
+        double accel = time * config.gravity * node->mass / (distance_sqr + config.epsilon);
         star->speed_x += accel * cos(angle);
         star->speed_y += accel * sin(angle);
     } else {
         for (int i = 0; i < 4; i++)
-            if (node->children[i])
-                update_speed(star, (struct quad*)node->children[i], time);
+            if (node->children[i] != NULL && node->children[i] != (struct quad*)star)
+                update_speed(star, node->children[i], time);
     }
 }
 
@@ -167,7 +166,7 @@ void world_frame(double time)
             quad->mass = mass_sum;
             int quadrant = get_quadrant(quad, star);
             if (quad->children[quadrant] == NULL) {
-                quad->children[quadrant] = (struct node*)star;
+                quad->children[quadrant] = (struct quad*)star;
             } else if (quad->children[quadrant]->size == 0) {
                 struct star* old_star = (struct star*)(quad->children[quadrant]);
                 struct quad* new_quad = &quads[quad_count];
@@ -182,10 +181,10 @@ void world_frame(double time)
                 double dx = new_quad->x - new_quad->geom_x;
                 double dy = new_quad->y - new_quad->geom_y;
                 new_quad->mass_offset = sqrt(dx*dx + dy*dy);
-                new_quad->children[get_quadrant(new_quad, old_star)] = (struct node*)old_star;
-                quad->children[quadrant] = (struct node*)new_quad;
+                new_quad->children[get_quadrant(new_quad, old_star)] = (struct quad*)old_star;
+                quad->children[quadrant] = new_quad;
             }
-            quad = (struct quad*)quad->children[quadrant];
+            quad = quad->children[quadrant];
         } while (quad->size);
     }
     perf_build = glfwGetTime() - perf_build;
