@@ -1,3 +1,8 @@
+// ****************************************************************************
+// Calculating star coordinates through Barnes–Hut simulation.
+// All stars are spread in a square quad-tree
+// ****************************************************************************
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -10,34 +15,29 @@
 #include "linmathd.h"
 #include "world.h"
 
-// Calculate stars coordinates through Barnes–Hut simulation.
-// All stars are spread in a square quad-tree
-
-// star or quadrant
+// Star or quadrant
 struct node
 {
-    double x; // center of mass
+    double x;  // center of mass
     double y;
     double mass;
-    double size; // zero for star
+    double size;  // zero for a star
 };
 
 struct star
 {
-    struct node; // inheriting node
+    struct node;  // inherits struct node
     double speed_x;
     double speed_y;
 } *stars;
 
 struct quad
 {
-    struct node; // inheriting node
-    double geom_x; // geometrical center
+    struct node;  // inherits struct node
+    double geom_x;  // geometrical center
     double geom_y;
-    double mass_offset;  // distance betwen mass and geometrical center
-    struct quad* children[4];
+    struct quad* children[4];  // 4 quadrants
 } *quads;
-
 
 void finalize_world()
 {
@@ -52,7 +52,7 @@ static inline double frand(double min, double max)
 }
 
 // assists qsorting
-int mass_ascending(const void *a, const void *b)
+static int mass_ascending(const void *a, const void *b)
 {
     if (((struct star*)a)->mass < ((struct star*)b)->mass) return -1;
     if (((struct star*)a)->mass > ((struct star*)b)->mass) return 1;
@@ -77,6 +77,7 @@ void init_world()
         stars[i].mass = frand(0.5, 1.5);
     }
     qsort(stars, config.stars, sizeof(struct star), mass_ascending);  // increases accumulation accuracy
+
     /*
     config.stars = 3;
     stars[0].x = 0.1;
@@ -94,21 +95,26 @@ void init_world()
     */
 }
 
-void update_speed(struct star* star, struct quad* node, double time)
+static void update_speed(struct star* star, const struct quad* node, const double time)
 {
     double dx = node->x - star->x;
     double dy = node->y - star->y;
     double distance_sqr = dx*dx + dy*dy;
-    if (sqrt(distance_sqr) >= node->size * config.accuracy) {
+    if (sqrt(distance_sqr) > node->size * config.accuracy) {
         double angle = atan2(dy, dx);
         double accel = time * config.gravity * node->mass / (distance_sqr + config.epsilon);
         star->speed_x += accel * cos(angle);
         star->speed_y += accel * sin(angle);
-    } else {
-        for (int i = 0; i < 4; i++)
-            if (node->children[i] != NULL && node->children[i] != (struct quad*)star)
-                update_speed(star, node->children[i], time);
-    }
+    } else if (node->size) {
+        if (node->children[0])
+            update_speed(star, node->children[0], time);
+        if (node->children[1])
+            update_speed(star, node->children[1], time);
+        if (node->children[2])
+            update_speed(star, node->children[2], time);
+        if (node->children[3])
+            update_speed(star, node->children[3], time);
+    } // else the same star or another star with the same coordinates
 }
 
 static inline int get_quadrant(const struct quad *quad, const struct star *star)
@@ -152,8 +158,8 @@ void world_frame(double time)
     quads[0].geom_y = (ymin_world+ymax_world)/2;
     double size_x = xmax_world - xmin_world;
     double size_y = ymax_world - ymin_world;
-    quads[0].size = size_x > size_y ? size_x : size_y; // keep nodes square
-    size_t quad_count = 1; // number of quads
+    quads[0].size = size_x > size_y ? size_x : size_y;  // keep nodes square
+    size_t quad_count = 1;  // number of quads
 
     // Build the tree
     for (struct star* star = stars; star < stars + config.stars; star++) {
@@ -178,9 +184,6 @@ void world_frame(double time)
                 double shift = quad->size/4;
                 new_quad->geom_x = quad->geom_x + (quadrant&0x1 ? shift : -shift);
                 new_quad->geom_y = quad->geom_y + (quadrant&0x2 ? shift : -shift);
-                double dx = new_quad->x - new_quad->geom_x;
-                double dy = new_quad->y - new_quad->geom_y;
-                new_quad->mass_offset = sqrt(dx*dx + dy*dy);
                 new_quad->children[get_quadrant(new_quad, old_star)] = (struct quad*)old_star;
                 quad->children[quadrant] = new_quad;
             }
