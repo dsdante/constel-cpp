@@ -156,7 +156,7 @@ void init_world()
     stars = calloc(config.stars, sizeof(struct star));
     quads = calloc(2 * config.stars, sizeof(struct quad));  // TODO: dynamic reallocation
     disp_stars = malloc(config.stars * sizeof(vec2));
-    double rmax = sqrt(config.stars)/7;
+    double rmax = sqrt(config.stars) / config.galaxy_density;
     for (int i = 0; i < config.stars; i++) {
         double r = frand(0, rmax);
         double dir = frand(0, 2*M_PI);
@@ -164,7 +164,7 @@ void init_world()
         stars[i].y = r * sin(dir);
         stars[i].speed.x =  config.star_speed * pow(r, 0.25) * sin(dir);
         stars[i].speed.y = -config.star_speed * pow(r, 0.25) * cos(dir);
-        stars[i].mass = frand(0.5, 1.5);
+        stars[i].mass = frand(1, 10);
     }
     qsort(stars, config.stars, sizeof(struct star), mass_ascending);  // increases accumulation accuracy
 

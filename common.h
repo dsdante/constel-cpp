@@ -18,6 +18,7 @@ struct vecd2
 extern struct config
 {
     int stars;
+    double galaxy_density;
     double star_speed;  // star starting speed factor
     double gravity;
     double epsilon;  // minimum effective distance
@@ -25,6 +26,7 @@ extern struct config
     double speed;  // simulation speed factor
     double min_fps;  // maximum sumulation frame = 1/FPS
     double max_fps;
+    double default_zoom;
     int msaa;  // anti-alisaing samples
     vec4* star_color;
     bool show_status;

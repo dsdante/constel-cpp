@@ -13,7 +13,6 @@
 #include "linmath.h"
 #include "world.h"
 
-#define DEFAULT_ZOOM 20
 #define ZOOM_SENSITIVITY 1.2
 #define ALIGN_TOPLEFT 0
 #define ALIGN_BOTTOMLEFT 1
@@ -273,7 +272,7 @@ static void glfw_resize(GLFWwindow* window, int width, int height)
 // ============================= General graphics =============================
 
 static vec2 view_center = { 0, 0 };
-static float zoom = DEFAULT_ZOOM;
+static float zoom;
 static mat4x4 projection;
 static GLint projection_uniform;
 static GLint star_color_uniform;
@@ -451,6 +450,7 @@ GLFWwindow* init_graphics()
     const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
     restored_x = (mode->width - restored_width) / 2;
     restored_y = (mode->height - restored_height) / 2;
+    zoom = config.default_zoom;
     glewExperimental = GL_TRUE;
     if (glewInit() != GLEW_OK) {
         fputs("glewInit failed\n", stderr);
@@ -532,20 +532,22 @@ void draw()
         int y = config.text_size;
         draw_text(font, win_width - config.text_size, y, ALIGN_TOPRIGHT,
                 "X: %.2f  Y: %.2f", view_center[0], view_center[1]);
-        if ((long)(zoom / DEFAULT_ZOOM) > 1)
+        if ((long)(zoom / config.default_zoom) > 1)
             draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT,
-                    "Zoom: %.0fx", zoom/DEFAULT_ZOOM);
+                    "Zoom: %.0fx", zoom/config.default_zoom);
         else
             draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT,
-                    "Zoom: 1:%.0f", (float)DEFAULT_ZOOM/zoom);
+                    "Zoom: 1:%.0f", (float)config.default_zoom/zoom);
         draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT,
                 "%.0f FPS", get_fps_period(1)+0.5f);
+        /*
         draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT,
                 "Build: %.0f ms", 1000*perf_build);
         draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT,
                 "Acceleration: %.0f ms", 1000*perf_accel);
         draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT,
                 "Drawing: %.0f ms", 1000*perf_draw);
+        */
     }
 
     glfwSwapBuffers(window);

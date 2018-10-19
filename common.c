@@ -9,6 +9,7 @@
 #define FPS_BUFF_SIZE 256
 #define DEFAULT_CONFIG_FILE "constel.conf"
 #define CONFIG_STARS "Stars"
+#define CONFIG_GALAXY_DENSITY "GalaxyDens"
 #define CONFIG_STAR_SPEED "StarSpeed"
 #define CONFIG_GRAVITY "Gravity"
 #define CONFIG_EPSILON "Epsilon"
@@ -16,6 +17,7 @@
 #define CONFIG_SPEED "Speed"
 #define CONFIG_MIN_FPS "MinFPS"
 #define CONFIG_MAX_FPS "MaxFPS"
+#define CONFIG_DEFAULT_ZOOM "DefaultZoom"
 #define CONFIG_MSAA "MSAA"
 #define CONFIG_STAR_COLOR "StarColor"
 #define CONFIG_SHOW_STATUS "ShowStatus"
@@ -50,6 +52,7 @@ static float star_color[] = { 1, 0.8, 0, 1 };
 static float text_color[] = { 0, 1, 0, 1 };
 struct config config = {
     .stars = 400,
+    .galaxy_density = 10,
     .star_speed = 0.55,
     .gravity = 0.004,
     .epsilon = 0.5,
@@ -57,6 +60,7 @@ struct config config = {
     .speed = 2,
     .min_fps = 30,
     .max_fps = 60,
+    .default_zoom = 25,
     .star_color = &star_color,
     .show_status = true,
     .font = "/usr/share/fonts/TTF/FreeSans.ttf",
@@ -103,6 +107,8 @@ void init_config(const char* filename)
 
         if (!strncmp(key, CONFIG_STARS, sizeof(CONFIG_STARS)-1)) {
             sscanf(value, "%d", &config.stars);
+        } else if (!strncmp(key, CONFIG_GALAXY_DENSITY, sizeof(CONFIG_GALAXY_DENSITY)-1)) {
+            sscanf(value, "%lf", &config.galaxy_density);
         } else if (!strncmp(key, CONFIG_STAR_SPEED, sizeof(CONFIG_STAR_SPEED)-1)) {
             sscanf(value, "%lf", &config.star_speed);
         } else if (!strncmp(key, CONFIG_GRAVITY, sizeof(CONFIG_GRAVITY)-1)) {
@@ -117,6 +123,8 @@ void init_config(const char* filename)
             sscanf(value, "%lf", &config.min_fps);
         } else if (!strncmp(key, CONFIG_MAX_FPS, sizeof(CONFIG_MAX_FPS)-1)) {
             sscanf(value, "%lf", &config.max_fps);
+        } else if (!strncmp(key, CONFIG_DEFAULT_ZOOM, sizeof(CONFIG_DEFAULT_ZOOM)-1)) {
+            sscanf(value, "%lf", &config.default_zoom);
         } else if (!strncmp(key, CONFIG_MSAA, sizeof(CONFIG_MSAA)-1)) {
             sscanf(value, "%d", &config.msaa);
         } else if (!strncmp(key, CONFIG_STAR_COLOR, sizeof(CONFIG_STAR_COLOR)-1)) {
