@@ -15,14 +15,12 @@
 #include <GLFW/glfw3.h>
 #include "common.h"
 #include "linmath.h"
-#include "linmathd.h"
 #include "world.h"
 
 // Star or quadrant
 struct node
-{
-    double x;  // center of mass
-    double y;
+{                  // inherits vecd2
+    struct vecd2;  // center of mass
     double mass;
     double size;  // zero for a star
 };
@@ -30,15 +28,13 @@ struct node
 static struct star
 {
     struct node;  // inherits struct node
-    double speed_x;
-    double speed_y;
+    struct vecd2 speed;
 } *stars = NULL;
 
 static struct quad
 {
     struct node;  // inherits struct node
-    double geom_x;  // geometrical center
-    double geom_y;
+    struct vecd2 center; // geometrical center
     struct quad* children[4];  // 4 quadrants
 } *quads = NULL;
 
@@ -83,8 +79,8 @@ static void update_speed(struct star* star, const struct quad* node)
     if (sqrt(distance_sqr) > node->size * config.accuracy) {
         double angle = atan2(dy, dx);
         double accel = frame_time * config.gravity * node->mass / (distance_sqr + config.epsilon);
-        star->speed_x += accel * cos(angle);
-        star->speed_y += accel * sin(angle);
+        star->speed.x += accel * cos(angle);
+        star->speed.y += accel * sin(angle);
     } else if (node->size) {
         if (node->children[0])
             update_speed(star, node->children[0]);
@@ -151,8 +147,8 @@ void init_world()
         double dir = frand(0, 2*M_PI);
         stars[i].x = r * cos(dir);
         stars[i].y = r * sin(dir);
-        stars[i].speed_x =  config.star_speed * pow(r, 0.25) * sin(dir);
-        stars[i].speed_y = -config.star_speed * pow(r, 0.25) * cos(dir);
+        stars[i].speed.x =  config.star_speed * pow(r, 0.25) * sin(dir);
+        stars[i].speed.y = -config.star_speed * pow(r, 0.25) * cos(dir);
         stars[i].mass = frand(0.5, 1.5);
     }
     qsort(stars, config.stars, sizeof(struct star), mass_ascending);  // increases accumulation accuracy
@@ -179,9 +175,9 @@ void init_world()
 static inline int get_quadrant(const struct quad *quad, const struct star *star)
 {
     int quadrant = 0;
-    if (star->x > quad->geom_x)
+    if (star->x > quad->center.x)
         quadrant++;
-    if (star->y > quad->geom_y)
+    if (star->y > quad->center.y)
         quadrant += 2;
     return quadrant;
 }
@@ -214,8 +210,8 @@ void world_frame(double time)
         if (ymax_world < stars[i].y)
             ymax_world = stars[i].y;
     }
-    quads[0].geom_x = (xmin_world+xmax_world)/2;
-    quads[0].geom_y = (ymin_world+ymax_world)/2;
+    quads[0].center.x = (xmin_world+xmax_world)/2;
+    quads[0].center.y = (ymin_world+ymax_world)/2;
     double size_x = xmax_world - xmin_world;
     double size_y = ymax_world - ymin_world;
     quads[0].size = size_x > size_y ? size_x : size_y;  // keep nodes square
@@ -242,8 +238,8 @@ void world_frame(double time)
                 new_quad->mass = old_star->mass;
                 new_quad->size = quad->size/2;
                 double shift = quad->size/4;
-                new_quad->geom_x = quad->geom_x + (quadrant&0x1 ? shift : -shift);
-                new_quad->geom_y = quad->geom_y + (quadrant&0x2 ? shift : -shift);
+                new_quad->center.x = quad->center.x + (quadrant&0x1 ? shift : -shift);
+                new_quad->center.y = quad->center.y + (quadrant&0x2 ? shift : -shift);
                 new_quad->children[get_quadrant(new_quad, old_star)] = (struct quad*)old_star;
                 quad->children[quadrant] = new_quad;
             }
@@ -264,8 +260,8 @@ void world_frame(double time)
     for (int i = 0; i < cores; i++)
         sem_wait(&job_finish);
     for (struct star* star = stars; star < stars + config.stars; star++) {
-        star->x += star->speed_x * frame_time;
-        star->y += star->speed_y * frame_time;
+        star->x += star->speed.x * frame_time;
+        star->y += star->speed.y * frame_time;
     }
     perf_accel = glfwGetTime() - perf_accel;
 

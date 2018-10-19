@@ -11,7 +11,6 @@
 #include "common.h"
 #include "input.h"
 #include "linmath.h"
-#include "linmathd.h"
 #include "world.h"
 
 #define DEFAULT_ZOOM 20
@@ -367,7 +366,7 @@ static void update_view()
 
     if (input.scroll) {
         float new_zoom = zoom * pow(ZOOM_SENSITIVITY, input.scroll);
-        vecd2 mouse; // mouse position in pixels
+        struct vecd2 mouse; // mouse position in pixels
         glfwGetCursorPos(window, &mouse.x, &mouse.y);
         mouse.x = mouse.x - 0.5*win_width;
         mouse.y = 0.5*win_height - mouse.y;
