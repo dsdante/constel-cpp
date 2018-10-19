@@ -4,11 +4,14 @@
 // ****************************************************************************
 
 #include <assert.h>
+#include <pthread.h>
+#include <semaphore.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <unistd.h>
 #include <GLFW/glfw3.h>
 #include "common.h"
 #include "linmath.h"
@@ -24,26 +27,93 @@ struct node
     double size;  // zero for a star
 };
 
-struct star
+static struct star
 {
     struct node;  // inherits struct node
     double speed_x;
     double speed_y;
-} *stars;
+} *stars = NULL;
 
-struct quad
+static struct quad
 {
     struct node;  // inherits struct node
     double geom_x;  // geometrical center
     double geom_y;
     struct quad* children[4];  // 4 quadrants
-} *quads;
+} *quads = NULL;
+
+static int cores;
+static pthread_t *threads = NULL;  // thread pool
+static sem_t job_start;
+static sem_t job_finish;
+static double frame_time;  // stays constant during a frame
 
 void finalize_world()
 {
-    free(stars);
-    free(quads);
-    free(disp_stars);
+    if (threads) {
+        for (int i = 0; i < cores; i++)
+            pthread_cancel(threads[i]);
+        for (int i = 0; i < cores; i++)
+            pthread_join(threads[i], NULL);
+        sem_destroy(&job_start);
+        sem_destroy(&job_finish);
+        free(threads);
+        threads = NULL;
+    }
+    if (stars) {
+        free(stars);
+        stars = NULL;
+    }
+    if (quads) {
+        free(quads);
+        quads = NULL;
+    }
+    if (disp_stars) {
+        free(disp_stars);
+        disp_stars = NULL;
+    }
+}
+
+// Recursive walk through the qtree
+static void update_speed(struct star* star, const struct quad* node)
+{
+    double dx = node->x - star->x;
+    double dy = node->y - star->y;
+    double distance_sqr = dx*dx + dy*dy;
+    if (sqrt(distance_sqr) > node->size * config.accuracy) {
+        double angle = atan2(dy, dx);
+        double accel = frame_time * config.gravity * node->mass / (distance_sqr + config.epsilon);
+        star->speed_x += accel * cos(angle);
+        star->speed_y += accel * sin(angle);
+    } else if (node->size) {
+        if (node->children[0])
+            update_speed(star, node->children[0]);
+        if (node->children[1])
+            update_speed(star, node->children[1]);
+        if (node->children[2])
+            update_speed(star, node->children[2]);
+        if (node->children[3])
+            update_speed(star, node->children[3]);
+    } // else the same star or another star with the same coordinates
+}
+
+// Sleeps in the pool until job_start is fired.
+// Can be safely cancelled at any time.
+static void* update_speed_job(void* arg)
+{
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+    int part = (int)(intptr_t)arg;
+    int part_start = config.stars * part / cores;
+    int part_end = config.stars * (part+1) / cores;
+
+    while (true) {
+        sem_wait(&job_start);
+        for (int i = part_start; i < part_end; i++)
+            update_speed(&stars[i], &quads[0]);
+        sem_post(&job_finish);
+    }
+
+    return NULL;
 }
 
 static inline double frand(double min, double max)
@@ -62,10 +132,19 @@ static int mass_ascending(const void *a, const void *b)
 void init_world()
 {
     assert(config.stars > 1);
+
+    // Init threads
+    cores = sysconf(_SC_NPROCESSORS_ONLN);
+    sem_init(&job_start, 0, 0);
+    sem_init(&job_finish, 0, 0);
+    threads = malloc(cores * sizeof(pthread_t));
+    for (int i = 0; i < cores; i++)
+        pthread_create(&threads[i], NULL, &update_speed_job, (void*)(intptr_t)i);
+
+    // Init stars
     stars = calloc(config.stars, sizeof(struct star));
     quads = calloc(2 * config.stars, sizeof(struct quad));  // TODO: dynamic reallocation
     disp_stars = malloc(config.stars * sizeof(vec2));
-
     double rmax = sqrt(config.stars)/7;
     for (int i = 0; i < config.stars; i++) {
         double r = frand(0, rmax);
@@ -80,43 +159,23 @@ void init_world()
 
     /*
     config.stars = 3;
-    stars[0].x = 0.1;
+    stars[0].x = 0.05;
     stars[0].y = 0;
     stars[0].speed_x = 0;
-    stars[0].speed_y = -0.1;
+    stars[0].speed_y = -0.05;
     stars[0].mass = 1;
-    stars[1].x = -0.1;
+    stars[1].x = -0.05;
     stars[1].y = 0;
     stars[1].speed_x = 0;
-    stars[1].speed_y = 0.1;
+    stars[1].speed_y = 0.05;
     stars[1].mass = 1;
     stars[2].x = 1000;
     stars[2].y = 1000;
     */
 }
 
-static void update_speed(struct star* star, const struct quad* node, const double time)
-{
-    double dx = node->x - star->x;
-    double dy = node->y - star->y;
-    double distance_sqr = dx*dx + dy*dy;
-    if (sqrt(distance_sqr) > node->size * config.accuracy) {
-        double angle = atan2(dy, dx);
-        double accel = time * config.gravity * node->mass / (distance_sqr + config.epsilon);
-        star->speed_x += accel * cos(angle);
-        star->speed_y += accel * sin(angle);
-    } else if (node->size) {
-        if (node->children[0])
-            update_speed(star, node->children[0], time);
-        if (node->children[1])
-            update_speed(star, node->children[1], time);
-        if (node->children[2])
-            update_speed(star, node->children[2], time);
-        if (node->children[3])
-            update_speed(star, node->children[3], time);
-    } // else the same star or another star with the same coordinates
-}
-
+// 2 3
+// 0 1
 static inline int get_quadrant(const struct quad *quad, const struct star *star)
 {
     int quadrant = 0;
@@ -129,9 +188,10 @@ static inline int get_quadrant(const struct quad *quad, const struct star *star)
 
 void world_frame(double time)
 {
-    if (time > 1/config.min_fps)
-        time = 1/config.min_fps;
-    time *= config.speed;
+    frame_time = time;
+    if (frame_time > 1/config.min_fps)
+        frame_time = 1/config.min_fps;
+    frame_time *= config.speed;
 
 
     //************************
@@ -198,14 +258,18 @@ void world_frame(double time)
     //*************************************
 
     perf_accel = glfwGetTime();
-    for (struct star* star = stars; star < stars + config.stars; star++)
-        update_speed(star, &quads[0], time);
+    // Wake up the threads in the pool
+    for (int i = 0; i < cores; i++)
+        sem_post(&job_start);
+    for (int i = 0; i < cores; i++)
+        sem_wait(&job_finish);
     for (struct star* star = stars; star < stars + config.stars; star++) {
-        star->x += star->speed_x * time;
-        star->y += star->speed_y * time;
+        star->x += star->speed_x * frame_time;
+        star->y += star->speed_y * frame_time;
     }
     perf_accel = glfwGetTime() - perf_accel;
 
+    // Display coordinates in GLfloat[]
     for (int i = 0; i < config.stars; i++) {
         disp_stars[i][0] = stars[i].x;
         disp_stars[i][1] = stars[i].y;

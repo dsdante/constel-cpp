@@ -23,7 +23,7 @@
 #define CONFIG_TEXT_SIZE "TextSize"
 #define CONFIG_TEXT_COLOR "TextColor"
 
-vec2* disp_stars; // display values, float
+vec2* disp_stars = NULL; // display values, float
 
 // Must be freed by the caller
 char* read_file(const char *filename, int *length)
