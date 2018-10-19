@@ -1,6 +1,7 @@
 // ****************************************************************************
 // Calculating star coordinates through Barnes–Hut simulation.
-// All stars are spread in a square quad-tree
+// All stars are spread in a square quad-tree.
+// https://en.wikipedia.org/wiki/Barnes%E2%80%93Hut_simulation
 // ****************************************************************************
 
 #include <assert.h>
@@ -16,8 +17,6 @@
 #include "common.h"
 #include "linmath.h"
 #include "world.h"
-
-#define MULTITHREADING 1
 
 // Star or quadrant
 struct node
@@ -43,7 +42,7 @@ static struct quad
 
 static int cores;
 static pthread_t *threads = NULL;  // thread pool
-static sem_t job_start;
+static sem_t job_start;  // thread pool semaphores
 static sem_t job_finish;
 static double frame_time;  // stays constant during a frame
 
@@ -112,7 +111,7 @@ static void* update_stars_job(void* arg)
             get_accel(&stars[i], &quads[0], &accel);
             accel.x *= frame_time * config.gravity / 2;
             accel.y *= frame_time * config.gravity / 2;
-            stars[i].speed.x += stars[i].accel.x + accel.x;
+            stars[i].speed.x += stars[i].accel.x + accel.x;  // velocity Verlet integration
             stars[i].speed.y += stars[i].accel.y + accel.y;
             stars[i].accel = accel;
         }
@@ -141,11 +140,17 @@ void init_world()
 
     // Init threads
     cores = sysconf(_SC_NPROCESSORS_ONLN);
-    sem_init(&job_start, 0, 0);
-    sem_init(&job_finish, 0, 0);
-    threads = malloc(cores * sizeof(pthread_t));
-    for (int i = 0; i < cores; i++)
-        pthread_create(&threads[i], NULL, &update_stars_job, (void*)(intptr_t)i);
+    #if 0
+        #warning single-threaded
+        cores = 1;
+    #endif
+    if (cores > 1) {
+        sem_init(&job_start, 0, 0);
+        sem_init(&job_finish, 0, 0);
+        threads = malloc(cores * sizeof(pthread_t));
+        for (int i = 0; i < cores; i++)
+            pthread_create(&threads[i], NULL, &update_stars_job, (void*)(intptr_t)i);
+    }
 
     // Init stars
     stars = calloc(config.stars, sizeof(struct star));
@@ -265,25 +270,24 @@ void world_frame(double time)
 
     perf_accel = glfwGetTime();
     // Wake up the threads in the pool
-    #if MULTITHREADING == 1
+    if (cores > 1) {
         for (int i = 0; i < cores; i++)
             sem_post(&job_start);
         for (int i = 0; i < cores; i++)
             sem_wait(&job_finish);
-    #else
-        #warning single-threaded
+    } else {
         for (int i = 0; i < config.stars; i++) {
             struct vecd2 accel = { 0 };
             get_accel(&stars[i], &quads[0], &accel);
             accel.x *= frame_time * config.gravity / 2;
             accel.y *= frame_time * config.gravity / 2;
-            stars[i].speed.x += stars[i].accel.x + accel.x;
+            stars[i].speed.x += stars[i].accel.x + accel.x;  // velocity Verlet integration
             stars[i].speed.y += stars[i].accel.y + accel.y;
             stars[i].accel = accel;
         }
-    #endif  // if MULTITHREADING == 1
+    }
     for (int i = 0; i < config.stars; i++) {
-        stars[i].x += frame_time * (stars[i].speed.x + stars[i].accel.x);
+        stars[i].x += frame_time * (stars[i].speed.x + stars[i].accel.x);  // velocity Verlet integration
         stars[i].y += frame_time * (stars[i].speed.y + stars[i].accel.y);
     }
     perf_accel = glfwGetTime() - perf_accel;
