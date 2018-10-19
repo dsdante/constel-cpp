@@ -17,6 +17,8 @@
 #include "linmath.h"
 #include "world.h"
 
+#define MULTITHREADING 1
+
 // Star or quadrant
 struct node
 {                  // inherits vecd2
@@ -29,6 +31,7 @@ static struct star
 {
     struct node;  // inherits struct node
     struct vecd2 speed;
+    struct vecd2 accel;  // already multiplied by t/2, for better performance
 } *stars = NULL;
 
 static struct quad
@@ -71,31 +74,31 @@ void finalize_world()
 }
 
 // Recursive walk through the qtree
-static void update_speed(struct star* star, const struct quad* node)
+static void get_accel(struct star* star, const struct quad* node, struct vecd2* accel)
 {
     double dx = node->x - star->x;
     double dy = node->y - star->y;
     double distance_sqr = dx*dx + dy*dy;
     if (sqrt(distance_sqr) > node->size * config.accuracy) {
         double angle = atan2(dy, dx);
-        double accel = frame_time * config.gravity * node->mass / (distance_sqr + config.epsilon);
-        star->speed.x += accel * cos(angle);
-        star->speed.y += accel * sin(angle);
+        double accel_abs = node->mass / (distance_sqr + config.epsilon);
+        accel->x += accel_abs * cos(angle);
+        accel->y += accel_abs * sin(angle);
     } else if (node->size) {
         if (node->children[0])
-            update_speed(star, node->children[0]);
+            get_accel(star, node->children[0], accel);
         if (node->children[1])
-            update_speed(star, node->children[1]);
+            get_accel(star, node->children[1], accel);
         if (node->children[2])
-            update_speed(star, node->children[2]);
+            get_accel(star, node->children[2], accel);
         if (node->children[3])
-            update_speed(star, node->children[3]);
+            get_accel(star, node->children[3], accel);
     } // else the same star or another star with the same coordinates
 }
 
 // Sleeps in the pool until job_start is fired.
 // Can be safely cancelled at any time.
-static void* update_speed_job(void* arg)
+static void* update_stars_job(void* arg)
 {
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
     int part = (int)(intptr_t)arg;
@@ -104,8 +107,15 @@ static void* update_speed_job(void* arg)
 
     while (true) {
         sem_wait(&job_start);
-        for (int i = part_start; i < part_end; i++)
-            update_speed(&stars[i], &quads[0]);
+        for (int i = part_start; i < part_end; i++) {
+            struct vecd2 accel = { 0 };
+            get_accel(&stars[i], &quads[0], &accel);
+            accel.x *= frame_time * config.gravity / 2;
+            accel.y *= frame_time * config.gravity / 2;
+            stars[i].speed.x += stars[i].accel.x + accel.x;
+            stars[i].speed.y += stars[i].accel.y + accel.y;
+            stars[i].accel = accel;
+        }
         sem_post(&job_finish);
     }
 
@@ -135,7 +145,7 @@ void init_world()
     sem_init(&job_finish, 0, 0);
     threads = malloc(cores * sizeof(pthread_t));
     for (int i = 0; i < cores; i++)
-        pthread_create(&threads[i], NULL, &update_speed_job, (void*)(intptr_t)i);
+        pthread_create(&threads[i], NULL, &update_stars_job, (void*)(intptr_t)i);
 
     // Init stars
     stars = calloc(config.stars, sizeof(struct star));
@@ -153,21 +163,21 @@ void init_world()
     }
     qsort(stars, config.stars, sizeof(struct star), mass_ascending);  // increases accumulation accuracy
 
-    /*
-    config.stars = 3;
-    stars[0].x = 0.05;
-    stars[0].y = 0;
-    stars[0].speed_x = 0;
-    stars[0].speed_y = -0.05;
-    stars[0].mass = 1;
-    stars[1].x = -0.05;
-    stars[1].y = 0;
-    stars[1].speed_x = 0;
-    stars[1].speed_y = 0.05;
-    stars[1].mass = 1;
-    stars[2].x = 1000;
-    stars[2].y = 1000;
-    */
+    #if 0
+        config.stars = 3;
+        stars[0].x = 0.05;
+        stars[0].y = 0;
+        stars[0].speed.x = 0;
+        stars[0].speed.y = -0.0;
+        stars[0].mass = 1;
+        stars[1].x = -0.05;
+        stars[1].y = 0;
+        stars[1].speed.x = 0;
+        stars[1].speed.y = 0.0;
+        stars[1].mass = 1;
+        stars[2].x = 1000;
+        stars[2].y = 1000;
+    #endif
 }
 
 // 2 3
@@ -255,13 +265,26 @@ void world_frame(double time)
 
     perf_accel = glfwGetTime();
     // Wake up the threads in the pool
-    for (int i = 0; i < cores; i++)
-        sem_post(&job_start);
-    for (int i = 0; i < cores; i++)
-        sem_wait(&job_finish);
-    for (struct star* star = stars; star < stars + config.stars; star++) {
-        star->x += star->speed.x * frame_time;
-        star->y += star->speed.y * frame_time;
+    #if MULTITHREADING == 1
+        for (int i = 0; i < cores; i++)
+            sem_post(&job_start);
+        for (int i = 0; i < cores; i++)
+            sem_wait(&job_finish);
+    #else
+        #warning single-threaded
+        for (int i = 0; i < config.stars; i++) {
+            struct vecd2 accel = { 0 };
+            get_accel(&stars[i], &quads[0], &accel);
+            accel.x *= frame_time * config.gravity / 2;
+            accel.y *= frame_time * config.gravity / 2;
+            stars[i].speed.x += stars[i].accel.x + accel.x;
+            stars[i].speed.y += stars[i].accel.y + accel.y;
+            stars[i].accel = accel;
+        }
+    #endif  // if MULTITHREADING == 1
+    for (int i = 0; i < config.stars; i++) {
+        stars[i].x += frame_time * (stars[i].speed.x + stars[i].accel.x);
+        stars[i].y += frame_time * (stars[i].speed.y + stars[i].accel.y);
     }
     perf_accel = glfwGetTime() - perf_accel;
 
