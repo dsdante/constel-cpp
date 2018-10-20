@@ -1,7 +1,7 @@
 // ****************************************************************************
 // Calculating star coordinates through Barnes–Hut simulation.
 // All stars are spread in a square quad-tree.
-// https://en.wikipedia.org/wiki/Barnes%E2%80%93Hut_simulation
+// https://en.wikipedia.org/wiki/Barnes–Hut_simulation
 // ****************************************************************************
 
 #include <assert.h>

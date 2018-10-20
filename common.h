@@ -41,6 +41,7 @@ extern double perf_accel;
 extern double perf_draw;
 
 char* read_file(const char *filename, int *length);
+double frame_sleep();
 void init_config(const char* filename);
 void finalize_config();
 float get_fps(int frame);

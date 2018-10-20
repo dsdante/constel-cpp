@@ -45,8 +45,8 @@ static struct font
 {
     int size;
     GLuint tex;     // texture object
-    unsigned int w; // width of texture in pixels
-    unsigned int h; // height of texture in pixels
+    unsigned int tex_w; // width of texture in pixels
+    unsigned int tex_h; // height of texture in pixels
     struct
     {
         float dx;   // advance.x
@@ -76,8 +76,8 @@ static struct font* new_font(const char* font_path, int size)
     FT_GlyphSlot g = face->glyph;
     int roww = 0;
     int rowh = 0;
-    font->w = 0;
-    font->h = 0;
+    font->tex_w = 0;
+    font->tex_h = 0;
     memset(font->c, 0, sizeof(font->c));
     for (int i = 32; i < 128; i++) {
         if (FT_Load_Char(face, i, FT_LOAD_RENDER)) {
@@ -85,9 +85,9 @@ static struct font* new_font(const char* font_path, int size)
             continue;
         }
         if (roww + g->bitmap.width + 1 >= texture_max_width) {
-            if (roww > font->w)
-                font->w = roww;
-            font->h += rowh;
+            if (roww > font->tex_w)
+                font->tex_w = roww;
+            font->tex_h += rowh;
             roww = 0;
             rowh = 0;
         }
@@ -95,15 +95,14 @@ static struct font* new_font(const char* font_path, int size)
         if (g->bitmap.rows > rowh)
             rowh = g->bitmap.rows;
     }
-    if (roww > font->w)
-        font->w = roww;
-    font->h += rowh;
+    if (roww > font->tex_w)
+        font->tex_w = roww;
+    font->tex_h += rowh;
 
     glActiveTexture(GL_TEXTURE0);
     glGenTextures(1, &font->tex);
     glBindTexture(GL_TEXTURE_2D, font->tex);
-    //glUniform1i(text_texture_uniform, 0);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, font->w, font->h, 0, GL_ALPHA, GL_UNSIGNED_BYTE, 0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, font->tex_w, font->tex_h, 0, GL_ALPHA, GL_UNSIGNED_BYTE, 0);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -131,23 +130,24 @@ static struct font* new_font(const char* font_path, int size)
         font->c[i].h = g->bitmap.rows;
         font->c[i].x = g->bitmap_left;
         font->c[i].y = g->bitmap_top;
-        font->c[i].tx = ox / (float)font->w;
-        font->c[i].ty = oy / (float)font->h;
+        font->c[i].tx = ox / (float)font->tex_w;
+        font->c[i].ty = oy / (float)font->tex_h;
         if (g->bitmap.rows > rowh)
             rowh = g->bitmap.rows;
         ox += g->bitmap.width + 1;
     }
 
+    FT_Done_Face(face);
     return font;
 }
 
-static void delete_font(struct font *font)
+static void delete_font(struct font* font)
 {
     glDeleteTextures(1, &font->tex);
     free(font);
 }
 
-static void draw_text(struct font *font, int x, int y, int align, const char* restrict format, ...)
+static void draw_text(struct font* font, int x, int y, int align, const char* restrict format, ...)
 {
     va_list argptr;
     va_start(argptr, format);
@@ -166,7 +166,7 @@ static void draw_text(struct font *font, int x, int y, int align, const char* re
     y = win_height - y;
     float total_width = 0;
     float total_height = 0;
-    struct font_point coords[6 * length];
+    struct font_point coords[6*length];
     int n = 0;
     for (uint8_t *p = (uint8_t*)text; *p; p++) {
         float x2 = x + font->c[*p].x;
@@ -181,11 +181,11 @@ static void draw_text(struct font *font, int x, int y, int align, const char* re
         if (!w || !h)
             continue;
         coords[n++] = (struct font_point){ x2,   y2,   font->c[*p].tx, font->c[*p].ty };
-        coords[n++] = (struct font_point){ x2+w, y2,   font->c[*p].tx + font->c[*p].w / font->w, font->c[*p].ty };
-        coords[n++] = (struct font_point){ x2,   y2-h, font->c[*p].tx, font->c[*p].ty + font->c[*p].h / font->h };
-        coords[n++] = (struct font_point){ x2+w, y2,   font->c[*p].tx + font->c[*p].w / font->w, font->c[*p].ty };
-        coords[n++] = (struct font_point){ x2,   y2-h, font->c[*p].tx, font->c[*p].ty + font->c[*p].h / font->h };
-        coords[n++] = (struct font_point){ x2+w, y2-h, font->c[*p].tx + font->c[*p].w / font->w, font->c[*p].ty + font->c[*p].h / font->h };
+        coords[n++] = (struct font_point){ x2+w, y2,   font->c[*p].tx + font->c[*p].w / font->tex_w, font->c[*p].ty };
+        coords[n++] = (struct font_point){ x2,   y2-h, font->c[*p].tx, font->c[*p].ty + font->c[*p].h / font->tex_h };
+        coords[n++] = (struct font_point){ x2+w, y2,   font->c[*p].tx + font->c[*p].w / font->tex_w, font->c[*p].ty };
+        coords[n++] = (struct font_point){ x2,   y2-h, font->c[*p].tx, font->c[*p].ty + font->c[*p].h / font->tex_h };
+        coords[n++] = (struct font_point){ x2+w, y2-h, font->c[*p].tx + font->c[*p].w / font->tex_w, font->c[*p].ty + font->c[*p].h / font->tex_h };
     }
     for (int i = 0; i < n; i++) {
         if (align == ALIGN_TOPRIGHT || align == ALIGN_BOTTOMRIGHT)
@@ -494,7 +494,7 @@ GLFWwindow* init_graphics()
         }
         text_coord_attrib = glGetAttribLocation(text_shader, "coord");
         text_projection_uniform = glGetUniformLocation(text_shader, "projection");
-        text_texture_uniform = glGetUniformLocation(text_shader, "tex");
+        text_texture_uniform = glGetUniformLocation(text_shader, "texture");
         text_color_uniform = glGetUniformLocation(text_shader, "color");
         font = new_font(config.font, config.text_size);
         if (!font) {
@@ -532,7 +532,7 @@ void draw()
         int y = config.text_size;
         draw_text(font, win_width - config.text_size, y, ALIGN_TOPRIGHT,
                 "X: %.2f  Y: %.2f", view_center[0], view_center[1]);
-        if ((long)(zoom / config.default_zoom) > 1)
+        if (floor(zoom / config.default_zoom) > 1)
             draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT,
                     "Zoom: %.0fx", zoom/config.default_zoom);
         else
@@ -540,6 +540,8 @@ void draw()
                     "Zoom: 1:%.0f", (float)config.default_zoom/zoom);
         draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT,
                 "%.0f FPS", get_fps_period(1)+0.5f);
+        draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT,
+                "qwe\nasd");
         /*
         draw_text(font, win_width - config.text_size, y+=1.5*config.text_size, ALIGN_TOPRIGHT,
                 "Build: %.0f ms", 1000*perf_build);

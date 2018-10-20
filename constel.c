@@ -1,10 +1,5 @@
-#define _GNU_SOURCE
-#include <stdbool.h>
-#include <math.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <GL/gl.h>
 #include <GLFW/glfw3.h>
 #include "common.h"
 #include "graphics.h"
@@ -20,26 +15,7 @@ void exit_finalize(int code)
     exit(code);
 }
 
-// returns actual frame duration
-double frame_sleep()
-{
-    static double last_time = NAN;
-    if (isnan(last_time))
-        last_time = glfwGetTime() - 1.0/config.max_fps;
-    double last_interval = glfwGetTime() - last_time;
-    double sleep_interval = 1.0/config.max_fps - last_interval;
-    if (sleep_interval > 0) {
-        double intpart;
-        const struct timespec sleep_ts = { sleep_interval, 1e+9*modf(sleep_interval,&intpart) };
-        nanosleep(&sleep_ts, NULL);
-    }
-    last_interval = glfwGetTime() - last_time;
-    last_time += last_interval;
-    set_fps(1 / last_interval);
-    return last_interval;
-}
-
-int main(int argc, char *argv[])
+int main(int argc, char **argv)
 {
     time_t seed = time(NULL);
     //printf("Random seed: 0x%lx\n", seed);
@@ -64,4 +40,3 @@ int main(int argc, char *argv[])
 
     exit_finalize(0);
 }
-

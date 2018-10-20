@@ -2,9 +2,10 @@
 
 uniform mat4 projection;
 attribute vec4 coord;
-varying vec2 texpos;
+varying vec2 texture_pos;
 
-void main(void) {
-    gl_Position = projection * vec4(coord.xy, 0, 1);
-    texpos = coord.zw;
+void main(void)
+{
+    gl_Position = projection * vec4(coord.xyz, 1);
+    texture_pos = coord.zw;
 }

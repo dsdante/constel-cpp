@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <GLFW/glfw3.h>
 #include "common.h"
 #include "linmath.h"
 
@@ -46,19 +48,38 @@ char* read_file(const char *filename, int *length)
     return buffer;
 }
 
+// returns actual frame duration
+double frame_sleep()
+{
+    static double last_time = NAN;
+    if (isnan(last_time))
+        last_time = glfwGetTime() - 1.0/config.max_fps;
+    double last_interval = glfwGetTime() - last_time;
+    double sleep_interval = 1.0/config.max_fps - last_interval;
+    if (sleep_interval > 0) {
+        double intpart;
+        const struct timespec sleep_ts = { sleep_interval, 1e+9*modf(sleep_interval,&intpart) };
+        nanosleep(&sleep_ts, NULL);
+    }
+    last_interval = glfwGetTime() - last_time;
+    last_time += last_interval;
+    set_fps(1 / last_interval);
+    return last_interval;
+}
+
 // ============================== Configuration ===============================
 
 static float star_color[] = { 1, 0.8, 0, 1 };
 static float text_color[] = { 0, 1, 0, 1 };
 struct config config = {
-    .stars = 400,
+    .stars = 7000,
     .galaxy_density = 10,
-    .star_speed = 0.55,
-    .gravity = 0.004,
-    .epsilon = 0.5,
-    .accuracy = 1,
-    .speed = 2,
-    .min_fps = 30,
+    .star_speed = 1.4,
+    .gravity = 0.002,
+    .epsilon = 2,
+    .accuracy = 0.7,
+    .speed = 1,
+    .min_fps = 40,
     .max_fps = 60,
     .default_zoom = 25,
     .star_color = &star_color,
@@ -68,8 +89,8 @@ struct config config = {
     .text_color = &text_color,
 };
 
-char* config_lines[1024] = { NULL };
-size_t config_line_lengths[1024] = { 0 };
+static char* config_lines[1024] = { NULL };  // TODO: config saving
+static size_t config_line_lengths[1024] = { 0 };
 
 void finalize_config()
 {
