@@ -49,9 +49,9 @@ static double frame_time;  // stays constant during a frame
 void finalize_world()
 {
     if (threads) {
-        for (int i = 0; i < cores; i++)
+        for (int i = 1; i < cores; i++)
             pthread_cancel(threads[i]);
-        for (int i = 0; i < cores; i++)
+        for (int i = 1; i < cores; i++)
             pthread_join(threads[i], NULL);
         sem_destroy(&job_start);
         sem_destroy(&job_finish);
@@ -95,26 +95,28 @@ static void get_accel(struct star* star, const struct quad* node, struct vecd2* 
     } // else the same star or another star with the same coordinates
 }
 
+static void update_stars(int thread)
+{
+    for (int i = thread; i < config.stars; i += cores) {
+         struct vecd2 accel = { 0 };
+         get_accel(&stars[i], &quads[0], &accel);
+         accel.x *= frame_time * config.gravity / 2;
+         accel.y *= frame_time * config.gravity / 2;
+         stars[i].speed.x += stars[i].accel.x + accel.x;  // velocity Verlet integration
+         stars[i].speed.y += stars[i].accel.y + accel.y;
+         stars[i].accel = accel;
+     }
+}
+
 // Sleeps in the pool until job_start is fired.
-// Can be safely cancelled at any time.
 static void* update_stars_job(void* arg)
 {
-    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
-    int part = (int)(intptr_t)arg;
-    int part_start = config.stars * part / cores;
-    int part_end = config.stars * (part+1) / cores;
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL); // can be safely cancelled at any time.
+    int thread = (int)(intptr_t)arg;
 
     while (true) {
         sem_wait(&job_start);
-        for (int i = part_start; i < part_end; i++) {
-            struct vecd2 accel = { 0 };
-            get_accel(&stars[i], &quads[0], &accel);
-            accel.x *= frame_time * config.gravity / 2;
-            accel.y *= frame_time * config.gravity / 2;
-            stars[i].speed.x += stars[i].accel.x + accel.x;  // velocity Verlet integration
-            stars[i].speed.y += stars[i].accel.y + accel.y;
-            stars[i].accel = accel;
-        }
+        update_stars(thread);
         sem_post(&job_finish);
     }
 
@@ -148,7 +150,7 @@ void init_world()
         sem_init(&job_start, 0, 0);
         sem_init(&job_finish, 0, 0);
         threads = malloc(cores * sizeof(pthread_t));
-        for (int i = 0; i < cores; i++)
+        for (int i = 1; i < cores; i++)  // job #0 is run synchronously
             pthread_create(&threads[i], NULL, &update_stars_job, (void*)(intptr_t)i);
     }
 
@@ -270,22 +272,11 @@ void world_frame(double time)
 
     perf_accel = glfwGetTime();
     // Wake up the threads in the pool
-    if (cores > 1) {
-        for (int i = 0; i < cores; i++)
-            sem_post(&job_start);
-        for (int i = 0; i < cores; i++)
-            sem_wait(&job_finish);
-    } else {
-        for (int i = 0; i < config.stars; i++) {
-            struct vecd2 accel = { 0 };
-            get_accel(&stars[i], &quads[0], &accel);
-            accel.x *= frame_time * config.gravity / 2;
-            accel.y *= frame_time * config.gravity / 2;
-            stars[i].speed.x += stars[i].accel.x + accel.x;  // velocity Verlet integration
-            stars[i].speed.y += stars[i].accel.y + accel.y;
-            stars[i].accel = accel;
-        }
-    }
+    for (int i = 1; i < cores; i++)
+        sem_post(&job_start);
+    update_stars(0);  // job #0 is run synchronously
+    for (int i = 1; i < cores; i++)
+        sem_wait(&job_finish);
     for (int i = 0; i < config.stars; i++) {
         stars[i].x += frame_time * (stars[i].speed.x + stars[i].accel.x);  // velocity Verlet integration
         stars[i].y += frame_time * (stars[i].speed.y + stars[i].accel.y);
