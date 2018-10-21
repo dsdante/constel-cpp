@@ -1,3 +1,9 @@
+/.settings/
 /Debug/
 /Release/
-/constel
+
+.cproject
+.project
+constel
+*.o
+*.out

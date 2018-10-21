@@ -66,9 +66,13 @@ void finalize_world()
         free(quads);
         quads = NULL;
     }
-    if (disp_stars) {
-        free(disp_stars);
-        disp_stars = NULL;
+    if (disp_star_pos) {
+        free(disp_star_pos);
+        disp_star_pos = NULL;
+    }
+    if (disp_star_color) {
+        free(disp_star_color);
+        disp_star_color = NULL;
     }
 }
 
@@ -123,6 +127,62 @@ static void* update_stars_job(void* arg)
     return NULL;
 }
 
+void temperature_to_color(double temperature, vec3 color)
+{
+    double red, green, blue;
+
+    // TODO: excess conditions
+    if (temperature <= 6600) {
+        red = 1;
+    } else {
+        red = temperature - 6000;
+        red = 32969.8727466 * pow(red, -0.1332047592);
+        if (red < 0) {
+            red = 0;
+        } else if (red > 1) {
+            red = 1;
+        }
+    }
+
+    if (temperature <= 6600){
+        green = temperature;
+        green = 9947.08025861 * log(green) - 16111.95681661;
+        if (green < 0 ) {
+            green = 0;
+        } else if (green > 1) {
+            green = 1;
+        }
+    } else {
+        green = temperature - 6000;
+        green = 28812.21695283 * pow(green, -0.0755148492);
+        if (green < 0 ) {
+            green = 0;
+        } else if (green > 1) {
+            green = 1;
+        }
+    }
+
+    if (temperature >= 6600) {
+        blue = 1;
+    } else {
+        if (temperature <= 1900) {
+            blue = 0;
+        } else {
+            blue = temperature - 1000;
+            blue = 13851.77312231 * log(blue) - 30504.47927307;
+            if (blue < 0) {
+                blue = 0;
+            } else if (blue > 1) {
+                blue = 1;
+            }
+        }
+    }
+
+    color[0] = red;
+    color[1] = green;
+    color[2] = blue;
+}
+
 static inline double frand(double min, double max)
 {
     return (double)rand()/RAND_MAX * (max-min) + min;
@@ -157,7 +217,8 @@ void init_world()
     // Init stars
     stars = calloc(config.stars, sizeof(struct star));
     quads = calloc(2 * config.stars, sizeof(struct quad));  // TODO: dynamic reallocation
-    disp_stars = malloc(config.stars * sizeof(vec2));
+    disp_star_pos = malloc(config.stars * sizeof(vec2));
+    disp_star_color = malloc(config.stars * sizeof(vec3));
     double rmax = sqrt(config.stars) / config.galaxy_density;
     for (int i = 0; i < config.stars; i++) {
         double r = frand(0, rmax);
@@ -167,6 +228,7 @@ void init_world()
         stars[i].speed.x =  config.star_speed * pow(r, 0.25) * sin(dir);
         stars[i].speed.y = -config.star_speed * pow(r, 0.25) * cos(dir);
         stars[i].mass = frand(1, 10);
+        temperature_to_color(stars[i].mass * 1500, disp_star_color[i]);
     }
     qsort(stars, config.stars, sizeof(struct star), mass_ascending);  // increases accumulation accuracy
 
@@ -285,8 +347,8 @@ void world_frame(double time)
 
     // Display coordinates in GLfloat[]
     for (int i = 0; i < config.stars; i++) {
-        disp_stars[i][0] = stars[i].x;
-        disp_stars[i][1] = stars[i].y;
+        disp_star_pos[i][0] = stars[i].x;
+        disp_star_pos[i][1] = stars[i].y;
     }
     memset(quads, 0, quad_count * sizeof(struct quad));
 }

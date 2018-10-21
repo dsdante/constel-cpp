@@ -27,7 +27,8 @@
 #define CONFIG_TEXT_SIZE "TextSize"
 #define CONFIG_TEXT_COLOR "TextColor"
 
-vec2* disp_stars = NULL; // display values, float
+vec2* disp_star_pos = NULL; // display coordinates, float
+vec3* disp_star_color = NULL; // star colors
 
 // Must be freed by the caller
 char* read_file(const char *filename, int *length)
@@ -186,7 +187,7 @@ float get_fps(int frame)
         frame = fps_count;
     float sum = 0;
     for (int i = (fps_pointer - frame + FPS_BUFF_SIZE) % FPS_BUFF_SIZE;
-            i != fps_pointer; i = (i + 1) % FPS_BUFF_SIZE)
+             i != fps_pointer; i = (i + 1) % FPS_BUFF_SIZE)
         sum += fps_history[i];
     return sum / frame;
 }
@@ -194,8 +195,7 @@ float get_fps(int frame)
 // Get mean FPS for the last [period] seconds, according to the last FPS value
 float get_fps_period(float period)
 {
-    return get_fps(
-            period * fps_history[(fps_pointer - 1 + FPS_BUFF_SIZE) % FPS_BUFF_SIZE]);
+    return get_fps(period * fps_history[(fps_pointer - 1 + FPS_BUFF_SIZE) % FPS_BUFF_SIZE]);
 }
 
 // Append a new FPS value
