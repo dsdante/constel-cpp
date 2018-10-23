@@ -179,16 +179,16 @@ static void draw_text(struct font* font, int x, int y, enum align align, const c
         x = 0;
 
         while (*p != '\0' && *p != '\n') {
-            struct c c = font->c[*p];
-            if (c.w && c.h) {
-                int left   = x + c.x;
-                int right  = x + c.x + c.w;
-                int top    = y + c.y - c.h;
-                int bottom = y + c.y;
-                float tex_left = (float)c.tx / font->tex_w;
-                float tex_right = (float)(c.tx + c.w) / font->tex_w;
-                float tex_top = (float)(c.ty + c.h) / font->tex_h;
-                float tex_bottom = (float)c.ty / font->tex_h;
+            struct c* c = &font->c[*p];
+            if (c->w && c->h) {
+                int left   = x + c->x;
+                int right  = x + c->x + c->w;
+                int top    = y + c->y - c->h;
+                int bottom = y + c->y;
+                float tex_left = (float)c->tx / font->tex_w;
+                float tex_right = (float)(c->tx + c->w) / font->tex_w;
+                float tex_top = (float)(c->ty + c->h) / font->tex_h;
+                float tex_bottom = (float)c->ty / font->tex_h;
                 *(coord++) = (struct font_point){ left,  bottom, tex_left,  tex_bottom };
                 *(coord++) = (struct font_point){ right, bottom, tex_right, tex_bottom };
                 *(coord++) = (struct font_point){ left,  top,    tex_left,  tex_top };
@@ -197,7 +197,7 @@ static void draw_text(struct font* font, int x, int y, enum align align, const c
                 *(coord++) = (struct font_point){ right, top,    tex_right, tex_top };
                 line_length++;
             }
-            x += c.dx;
+            x += c->dx;
             p++;
         }
 
@@ -362,12 +362,14 @@ static GLuint make_shader_program(const char *vertex_file, const char *fragment_
         if (!shader)
             return GL_INVALID_VALUE;
         glAttachShader(program, shader);
+        glDeleteShader(shader);  // mark for deletion
     }
     if (fragment_file) {
         GLuint shader = make_shader(GL_FRAGMENT_SHADER, fragment_file);
         if(!shader)
             return GL_INVALID_VALUE;
         glAttachShader(program, shader);
+        glDeleteShader(shader);
     }
     glLinkProgram(program);
     GLint link_ok;
