@@ -1,5 +1,6 @@
 #version 130
 #extension GL_ARB_draw_instanced: enable
+#extension GL_ARB_explicit_attrib_location: enable
 
 // Star quad
 const vec2 star[] = vec2[](
@@ -10,8 +11,8 @@ const vec2 star[] = vec2[](
 );
 
 uniform mat4 projection;
-in vec2 star_position;
-in vec3 star_color;
+layout(location=1) in vec2 star_position;
+layout(location=2) in vec3 star_color;
 out vec3 f_star_color;
 
 void main()
