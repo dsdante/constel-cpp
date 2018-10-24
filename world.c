@@ -66,9 +66,9 @@ void finalize_world()
         free(quads);
         quads = NULL;
     }
-    if (disp_star_pos) {
-        free(disp_star_pos);
-        disp_star_pos = NULL;
+    if (disp_star_position) {
+        free(disp_star_position);
+        disp_star_position = NULL;
     }
     if (disp_star_color) {
         free(disp_star_color);
@@ -127,60 +127,31 @@ static void* update_stars_job(void* arg)
     return NULL;
 }
 
+// Taken from https://academo.org/demos/colour-temperature-relationship
 void temperature_to_color(double temperature, vec3 color)
 {
-    double red, green, blue;
+    // Red
+    // TODO: make darker at lower temperatures
+    if (temperature < 6688.07521717704)
+        color[0] = 1;
+    else
+        color[0] = 2.38773765777 / pow(temperature-6000, 0.1332047592);
 
-    // TODO: excess conditions
-    if (temperature <= 6600) {
-        red = 1;
-    } else {
-        red = temperature - 6000;
-        red = 32969.8727466 * pow(red, -0.1332047592);
-        if (red < 0) {
-            red = 0;
-        } else if (red > 1) {
-            red = 1;
-        }
-    }
+    // Green
+    if (temperature < 505.19153525581)
+        color[1] = 0;
+    else if (temperature < 6503.88567352958)
+        color[1] = 0.390081578769 * log(temperature) - 2.42823350043916;
+    else
+        color[1] = 1.59980184855092 / pow(temperature-6000, 0.0755148492);
 
-    if (temperature <= 6600){
-        green = temperature;
-        green = 9947.08025861 * log(green) - 16111.95681661;
-        if (green < 0 ) {
-            green = 0;
-        } else if (green > 1) {
-            green = 1;
-        }
-    } else {
-        green = temperature - 6000;
-        green = 28812.21695283 * pow(green, -0.0755148492);
-        if (green < 0 ) {
-            green = 0;
-        } else if (green > 1) {
-            green = 1;
-        }
-    }
-
-    if (temperature >= 6600) {
-        blue = 1;
-    } else {
-        if (temperature <= 1900) {
-            blue = 0;
-        } else {
-            blue = temperature - 1000;
-            blue = 13851.77312231 * log(blue) - 30504.47927307;
-            if (blue < 0) {
-                blue = 0;
-            } else if (blue > 1) {
-                blue = 1;
-            }
-        }
-    }
-
-    color[0] = red;
-    color[1] = green;
-    color[2] = blue;
+    // Blue
+    if (temperature < 1904.4958624097)
+        color[2] = 0;
+    else if (temperature < 6700.43225118371)
+        color[2] = 0.54320678911 * log(temperature-1000) - 3.69781379917569;
+    else
+        color[2] = 1;
 }
 
 static inline double frand(double min, double max)
@@ -217,7 +188,7 @@ void init_world()
     // Init stars
     stars = calloc(config.stars, sizeof(struct star));
     quads = calloc(2 * config.stars, sizeof(struct quad));  // TODO: dynamic reallocation
-    disp_star_pos = malloc(config.stars * sizeof(vec2));
+    disp_star_position = malloc(config.stars * sizeof(vec2));
     disp_star_color = malloc(config.stars * sizeof(vec3));
     double rmax = sqrt(config.stars) / config.galaxy_density;
     for (int i = 0; i < config.stars; i++) {
@@ -347,8 +318,8 @@ void world_frame(double time)
 
     // Display coordinates in GLfloat[]
     for (int i = 0; i < config.stars; i++) {
-        disp_star_pos[i][0] = stars[i].x;
-        disp_star_pos[i][1] = stars[i].y;
+        disp_star_position[i][0] = stars[i].x;
+        disp_star_position[i][1] = stars[i].y;
     }
     memset(quads, 0, quad_count * sizeof(struct quad));
 }
