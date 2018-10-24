@@ -1,8 +1,8 @@
 #version 130
 
-varying vec2 texture_pos;
 uniform sampler2D texture;
 uniform vec4 color;
+in vec2 texture_pos;
 
 void main(void)
 {

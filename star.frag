@@ -1,8 +1,8 @@
 #version 130
 
-uniform vec4 color;
+in vec3 f_star_color;
 
 void main()
 {
-	gl_FragColor = color;
+	gl_FragColor = vec4(f_star_color, 0.5);
 }

@@ -219,8 +219,8 @@ static void draw_text(struct font* font, int x, int y, enum align align, const c
     glUniform1i(text_texture_uniform, 0);
     glUniform2fv(text_pos_uniform, 1, text_pos);
     glEnableVertexAttribArray(text_char_pos_attrib);
-    glBindBuffer(GL_ARRAY_BUFFER, text_vbo);
     glVertexAttribPointer(text_char_pos_attrib, 4, GL_FLOAT, GL_FALSE, 0, 0);
+    glBindBuffer(GL_ARRAY_BUFFER, text_vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(coords), coords, GL_DYNAMIC_DRAW);
     glDrawArrays(GL_TRIANGLES, 0, n);
     glDisableVertexAttribArray(text_char_pos_attrib);
@@ -300,17 +300,15 @@ static void glfw_resize(GLFWwindow* window, int width, int height)
 
 static vec2 view_center = { 0, 0 };
 static float zoom;
-static mat4x4 projection;
-static GLint projection_uniform;
-static GLint star_color_uniform;
+
 static GLuint star_shader = GL_INVALID_VALUE;
-static GLuint star_buffer = GL_INVALID_VALUE;
-static GLuint star_vbo = GL_INVALID_VALUE;
-static const GLfloat star_vertices[] = {
-    0,  0.05,
-    -0.0433,  -0.025,
-    0.0433,   -0.025,
-};
+static mat4x4 projection;
+static GLint star_projection_uniform;
+static GLint star_position_attribute = GL_INVALID_VALUE;
+static GLint star_color_attribute = GL_INVALID_VALUE;
+static GLuint star_position_vbo = GL_INVALID_VALUE;
+static GLuint star_color_vbo = GL_INVALID_VALUE;
+
 
 // Log the last error associated with the object
 static void gl_log(GLuint object)
@@ -412,7 +410,7 @@ static void update_view()
          0.5f*win_height/zoom + view_center[1],
         -1, 1);
     glUseProgram(star_shader);
-    glUniformMatrix4fv(projection_uniform, 1, GL_FALSE, (const GLfloat*)projection);
+    glUniformMatrix4fv(star_projection_uniform, 1, GL_FALSE, (const GLfloat*)projection);
 
     mat4x4_identity(text_projection);
     mat4x4_ortho(text_projection, 0, win_width, 0, win_height, -1, 1);
@@ -422,13 +420,13 @@ static void update_view()
 
 void finalize_graphics()
 {
-    if (star_buffer != GL_INVALID_VALUE) {
-        glDeleteBuffers(1, (const GLuint[]){ star_buffer });
-        star_buffer = GL_INVALID_VALUE;
+    if (star_position_vbo != GL_INVALID_VALUE) {
+        glDeleteBuffers(1, (const GLuint[]){ star_position_vbo });
+        star_position_vbo = GL_INVALID_VALUE;
     }
-    if (star_vbo != GL_INVALID_VALUE) {
-        glDeleteBuffers(1, (const GLuint[]){ star_vbo });
-        star_vbo = GL_INVALID_VALUE;
+    if (star_color_vbo != GL_INVALID_VALUE) {
+        glDeleteBuffers(1, (const GLuint[]){ star_color_vbo });
+        star_color_vbo = GL_INVALID_VALUE;
     }
     if (text_vbo != GL_INVALID_VALUE) {
         glDeleteBuffers(1, (const GLuint[]){ text_vbo });
@@ -493,24 +491,28 @@ GLFWwindow* init_graphics()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+
     // Init stars
-    glGenBuffers(1, &star_buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, star_buffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(star_vertices), star_vertices, GL_STATIC_DRAW);
-    glGenBuffers(1, &star_vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, star_vbo);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2*sizeof(float), NULL);
-    glVertexAttribDivisor(2, 1);
-    glEnableVertexAttribArray(2);
     star_shader = make_shader_program("star.vert", "star.frag");
     if (!star_shader) {
         finalize_graphics();
         return NULL;
     }
-    projection_uniform = glGetUniformLocation(star_shader, "projection");
-    star_color_uniform = glGetUniformLocation(star_shader, "color");
-    glUseProgram(star_shader);
-    glUniform4fv(star_color_uniform, 1, *config.star_color);
+    star_projection_uniform = glGetUniformLocation(star_shader, "projection");
+    star_position_attribute = glGetAttribLocation(star_shader, "star_position");
+    star_color_attribute = glGetAttribLocation(star_shader, "star_color");
+
+    glGenBuffers(1, &star_position_vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, star_position_vbo);
+    glVertexAttribDivisor(star_position_attribute, 1);
+
+    glGenBuffers(1, &star_color_vbo);
+    glVertexAttribDivisor(star_color_attribute, 1);
+    glVertexAttribPointer(star_color_attribute, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vec3) * config.stars, disp_star_color, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, star_color_vbo);
+    glEnableVertexAttribArray(star_color_attribute);
+
 
     // Init text
     if (config.show_status) {
@@ -552,13 +554,12 @@ void draw()
     glClear(GL_COLOR_BUFFER_BIT);
 
     // Draw stars
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), NULL);
+
+    glEnableVertexAttribArray(star_position_attribute);
+    glVertexAttribPointer(star_position_attribute, 2, GL_FLOAT, GL_FALSE, 0, NULL);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vec2) * config.stars, disp_star_position, GL_STREAM_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, star_buffer);
-    glInterleavedArrays(GL_V2F, 0, NULL);
-    glBindBuffer(GL_ARRAY_BUFFER, star_vbo);
     glUseProgram(star_shader);
-    glDrawArraysInstanced(GL_TRIANGLES, 0, config.stars, config.stars);
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, config.stars);
 
     // Draw text
     if (config.show_status) {
