@@ -1,14 +1,16 @@
 #version 130
-#extension GL_ARB_draw_instanced: enable
 
-uniform mat4 projection;
-in vec2 aPos;
-in vec4 aColor;
-in vec2 aOffset;
-out vec4 fColor;
+const vec2 screen[] = vec2[](
+    vec2(-1.0, -1.0),
+    vec2(-1.0,  1.0),
+    vec2( 1.0, -1.0),
+    vec2( 1.0,  1.0)
+);
 
 void main()
 {
-    gl_Position = projection * vec4(aPos + aOffset, 0, 1);
-    fColor = aColor;
+    // Draw a rectangle covering all the screen
+    // All the actual drawing is done in the fragment shader
+    
+    gl_Position = vec4(screen[gl_VertexID], 0.0, 1.0);
 }

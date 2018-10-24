@@ -35,7 +35,7 @@ extern struct config
     vec4* text_color;
 } config;
 
-extern vec2* disp_star_pos;
+extern vec2* disp_star_position;
 extern vec3* disp_star_color;
 extern double perf_build;
 extern double perf_accel;

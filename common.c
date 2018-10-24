@@ -27,7 +27,7 @@
 #define CONFIG_TEXT_SIZE "TextSize"
 #define CONFIG_TEXT_COLOR "TextColor"
 
-vec2* disp_star_pos = NULL; // display coordinates, float
+vec2* disp_star_position = NULL; // display coordinates, float
 vec3* disp_star_color = NULL; // star colors
 
 // Must be freed by the caller
