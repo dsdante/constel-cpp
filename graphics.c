@@ -301,9 +301,16 @@ static void glfw_resize(GLFWwindow* window, int width, int height)
 static vec2 view_center = { 0, 0 };
 static float zoom;
 
+static GLuint star_texture = GL_INVALID_VALUE;
+static float* star_texture_values = NULL;
+static int star_texture_size = 0;
+static int star_texture_buff_size = 0;
+
 static GLuint star_shader = GL_INVALID_VALUE;
 static mat4x4 projection;
-static GLint star_projection_uniform;
+static GLint star_projection_uniform = GL_INVALID_VALUE;
+static GLint star_texture_uniform = GL_INVALID_VALUE;
+static GLint star_texture_size_uniform = GL_INVALID_VALUE;
 static GLint star_position_attribute = GL_INVALID_VALUE;
 static GLint star_color_attribute = GL_INVALID_VALUE;
 static GLuint star_position_vbo = GL_INVALID_VALUE;
@@ -390,6 +397,7 @@ static void update_view()
     view_center[0] -= input.panx / zoom;
     view_center[1] += input.pany / zoom;
 
+    // Update zoom
     if (input.scroll) {
         float new_zoom = zoom * pow(ZOOM_SENSITIVITY, input.scroll);
         struct vecd2 mouse; // mouse position in pixels
@@ -400,6 +408,38 @@ static void update_view()
         view_center[0] += (float)mouse.x * (1/zoom - 1/new_zoom);
         view_center[1] += (float)mouse.y * (1/zoom - 1/new_zoom);
         zoom = new_zoom;
+    }
+
+    // Re-generate the star sprite
+    if ((input.scroll || !star_texture_values) && zoom < 1000) {
+        const float star_size = 0.1;
+        star_texture_size = 2.0f * star_size * zoom;
+        if (star_texture_buff_size < star_texture_size * star_texture_size) {
+            star_texture_buff_size = star_texture_size * star_texture_size;
+            star_texture_values = realloc(star_texture_values, star_texture_buff_size * sizeof(float));
+        }
+
+        for (int x = 0; x < (star_texture_size+1)/2; x++)
+        for (int y = 0; y <= x; y++) {
+            float dx = (0.5f * star_texture_size - x) / zoom * 20;
+            float dy = (0.5f * star_texture_size - y) / zoom * 20;
+            float alpha = 1.0f / (dx*dx + dy*dy);
+            int x2 = star_texture_size-1-x;
+            int y2 = star_texture_size-1-y;
+            star_texture_values[x  + y  * star_texture_size] = alpha;
+            star_texture_values[x  + y2 * star_texture_size] = alpha;
+            star_texture_values[x2 + y  * star_texture_size] = alpha;
+            star_texture_values[x2 + y2 * star_texture_size] = alpha;
+            star_texture_values[y  + x  * star_texture_size] = alpha;
+            star_texture_values[y  + x2 * star_texture_size] = alpha;
+            star_texture_values[y2 + x  * star_texture_size] = alpha;
+            star_texture_values[y2 + x2 * star_texture_size] = alpha;
+        }
+        glUseProgram(text_shader);
+        glUniform1i(star_texture_size_uniform, star_texture_size);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, star_texture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_R, star_texture_size, star_texture_size, 0, GL_R, GL_FLOAT, star_texture_values);
     }
 
     mat4x4_identity(projection);
@@ -420,6 +460,14 @@ static void update_view()
 
 void finalize_graphics()
 {
+    if (star_shader != GL_INVALID_VALUE) {
+        glDeleteProgram(star_shader);
+        star_shader = GL_INVALID_VALUE;
+    }
+    if (text_shader != GL_INVALID_VALUE) {
+        glDeleteProgram(text_shader);
+        text_shader = GL_INVALID_VALUE;
+    }
     if (star_position_vbo != GL_INVALID_VALUE) {
         glDeleteBuffers(1, (const GLuint[]){ star_position_vbo });
         star_position_vbo = GL_INVALID_VALUE;
@@ -432,13 +480,13 @@ void finalize_graphics()
         glDeleteBuffers(1, (const GLuint[]){ text_vbo });
         text_vbo = GL_INVALID_VALUE;
     }
-    if (star_shader != GL_INVALID_VALUE) {
-        glDeleteProgram(star_shader);
-        star_shader = GL_INVALID_VALUE;
+    if (star_texture != GL_INVALID_VALUE) {
+        glDeleteTextures(1, &star_texture);
+        star_texture = GL_INVALID_VALUE;
     }
-    if (text_shader != GL_INVALID_VALUE) {
-        glDeleteProgram(text_shader);
-        text_shader = GL_INVALID_VALUE;
+    if (star_texture_values) {
+        free(star_texture_values);
+        star_texture_values = NULL;
     }
     if (font.tex != GL_INVALID_VALUE) {
         glDeleteTextures(1, &font.tex);
@@ -499,6 +547,8 @@ GLFWwindow* init_graphics()
         return NULL;
     }
     star_projection_uniform = glGetUniformLocation(star_shader, "projection");
+    star_texture_uniform = glGetUniformLocation(star_shader, "texture");
+    star_texture_size_uniform = glGetUniformLocation(star_shader, "texture_size");
     star_position_attribute = glGetAttribLocation(star_shader, "star_position");
     star_color_attribute = glGetAttribLocation(star_shader, "star_color");
 
@@ -512,7 +562,8 @@ GLFWwindow* init_graphics()
     glBufferData(GL_ARRAY_BUFFER, sizeof(vec3) * config.stars, disp_star_color, GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, star_color_vbo);
     glEnableVertexAttribArray(star_color_attribute);
-
+    glActiveTexture(GL_TEXTURE1);
+    glGenTextures(1, &star_texture);
 
     // Init text
     if (config.show_status) {
@@ -554,10 +605,12 @@ void draw()
     glClear(GL_COLOR_BUFFER_BIT);
 
     // Draw stars
-
     glEnableVertexAttribArray(star_position_attribute);
     glVertexAttribPointer(star_position_attribute, 2, GL_FLOAT, GL_FALSE, 0, NULL);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vec2) * config.stars, disp_star_position, GL_STREAM_DRAW);
+    glActiveTexture(GL_TEXTURE1);
+    glUniform1i(star_texture_uniform, /* GL_TEXTURE */ 0);
+    glBindTexture(GL_TEXTURE_2D, star_texture);
     glUseProgram(star_shader);
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, config.stars);
 
