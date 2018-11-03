@@ -413,7 +413,7 @@ static void update_view()
     // Re-generate the star sprite
     glUseProgram(star_shader);
     if ((input.scroll || !star_texture_values) && zoom < 1000) {
-        const float star_size = 0.3;
+        const float star_size = 0.5;  // equals to star.vert::star_size
         star_texture_size = 2.0f * star_size * zoom;
         if (star_texture_buff_size < star_texture_size * star_texture_size) {
             star_texture_buff_size = star_texture_size * star_texture_size;
@@ -422,8 +422,8 @@ static void update_view()
 
         for (int x = 0; x < (star_texture_size+1)/2; x++)
         for (int y = 0; y <= x; y++) {
-            float dx = (0.5f * star_texture_size - x) / zoom * 70;
-            float dy = (0.5f * star_texture_size - y) / zoom * 70;
+            float dx = (0.5f * star_texture_size - x) / zoom / star_size * 20 ;
+            float dy = (0.5f * star_texture_size - y) / zoom / star_size * 20 ;
             float alpha = 1.0f / (dx*dx + dy*dy);
             int x2 = star_texture_size-1-x;
             int y2 = star_texture_size-1-y;
@@ -536,7 +536,6 @@ GLFWwindow* init_graphics()
         return NULL;
     }
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 
     // Init stars
@@ -612,6 +611,7 @@ void draw()
     glClear(GL_COLOR_BUFFER_BIT);
 
     // Draw stars
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
     glUseProgram(star_shader);
     glEnableVertexAttribArray(star_position_attribute);
     glVertexAttribPointer(star_position_attribute, 2, GL_FLOAT, GL_FALSE, 0, NULL);
@@ -621,6 +621,7 @@ void draw()
 
     // Draw text
     if (config.show_status) {
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glUseProgram(text_shader);
         glUniform4fv(text_color_uniform, 1, *config.text_color);
 

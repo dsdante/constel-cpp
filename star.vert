@@ -3,7 +3,7 @@
 #extension GL_ARB_explicit_attrib_location: enable
 
 // Star quad
-const float star_size = 0.3;
+const float star_size = 0.5;  // equals to graphics.h::update_view()::star_size
 const vec2 star[] = vec2[](
     vec2(-star_size, -star_size),
     vec2(-star_size,  star_size),
