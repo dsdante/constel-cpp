@@ -29,6 +29,6 @@ out vec3 f_star_color;
 void main()
 {
     gl_Position = projection * vec4(star_position + star[gl_VertexID], 0, 1);
-    texture_pos = texture_coords[gl_VertexID] * texture_size;
+    texture_pos = texture_coords[gl_VertexID];
     f_star_color = star_color;
 }
