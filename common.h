@@ -28,7 +28,6 @@ extern struct config
     double max_fps;
     double default_zoom;
     int msaa;  // anti-alisaing samples
-    vec4* star_color;
     bool show_status;
     char* font;
     double text_size;

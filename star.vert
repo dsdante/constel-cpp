@@ -11,16 +11,15 @@ const vec2 star[] = vec2[](
     vec2( star_size,  star_size)
 );
 
-// Star quad
+// Texture quad
 const vec2 texture_coords[] = vec2[](
-    vec2(0.0, 0.0),
-    vec2(0.0, 1.0),
-    vec2(1.0, 0.0),
-    vec2(1.0, 1.0)
+    vec2(0, 0),
+    vec2(0, 1),
+    vec2(1, 0),
+    vec2(1, 1)
 );
 
 uniform mat4 projection;
-uniform int texture_size;
 layout(location=1) in vec2 star_position;
 layout(location=2) in vec3 star_color;
 out vec2 texture_pos;

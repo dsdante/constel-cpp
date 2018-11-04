@@ -118,8 +118,8 @@ static void new_font(const char* font_path, int size, struct font* font)
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     int ox = 0;
     int oy = 0;
@@ -303,14 +303,12 @@ static float zoom;
 
 static GLuint star_texture = GL_INVALID_VALUE;
 static float* star_texture_values = NULL;
-static int star_texture_size = 0;
 static int star_texture_buff_size = 0;
 
 static GLuint star_shader = GL_INVALID_VALUE;
 static mat4x4 projection;
 static GLint star_projection_uniform = GL_INVALID_VALUE;
 static GLint star_texture_uniform = GL_INVALID_VALUE;
-static GLint star_texture_size_uniform = GL_INVALID_VALUE;
 static GLint star_position_attribute = GL_INVALID_VALUE;
 static GLint star_color_attribute = GL_INVALID_VALUE;
 static GLuint star_position_vbo = GL_INVALID_VALUE;
@@ -414,7 +412,7 @@ static void update_view()
     glUseProgram(star_shader);
     if ((input.scroll || !star_texture_values) && zoom < 1000) {
         const float star_size = 0.5;  // equals to star.vert::star_size
-        star_texture_size = 2.0f * star_size * zoom;
+        int star_texture_size = 2.0f * star_size * zoom;
         if (star_texture_buff_size < star_texture_size * star_texture_size) {
             star_texture_buff_size = star_texture_size * star_texture_size;
             star_texture_values = realloc(star_texture_values, star_texture_buff_size * sizeof(float));
@@ -427,6 +425,7 @@ static void update_view()
             float alpha = 1.0f / (dx*dx + dy*dy);
             int x2 = star_texture_size-1-x;
             int y2 = star_texture_size-1-y;
+            // exploit symmetry
             star_texture_values[x  + y  * star_texture_size] = alpha;
             star_texture_values[x  + y2 * star_texture_size] = alpha;
             star_texture_values[x2 + y  * star_texture_size] = alpha;
@@ -436,7 +435,6 @@ static void update_view()
             star_texture_values[y2 + x  * star_texture_size] = alpha;
             star_texture_values[y2 + x2 * star_texture_size] = alpha;
         }
-        glUniform1i(star_texture_size_uniform, star_texture_size);
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, star_texture);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, star_texture_size, star_texture_size, 0, GL_ALPHA, GL_FLOAT, star_texture_values);
@@ -546,7 +544,6 @@ GLFWwindow* init_graphics()
     }
     star_projection_uniform = glGetUniformLocation(star_shader, "projection");
     star_texture_uniform = glGetUniformLocation(star_shader, "texture");
-    star_texture_size_uniform = glGetUniformLocation(star_shader, "texture_size");
     star_position_attribute = glGetAttribLocation(star_shader, "star_position");
     star_color_attribute = glGetAttribLocation(star_shader, "star_color");
 

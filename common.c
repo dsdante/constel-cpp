@@ -21,7 +21,6 @@
 #define CONFIG_MAX_FPS "MaxFPS"
 #define CONFIG_DEFAULT_ZOOM "DefaultZoom"
 #define CONFIG_MSAA "MSAA"
-#define CONFIG_STAR_COLOR "StarColor"
 #define CONFIG_SHOW_STATUS "ShowStatus"
 #define CONFIG_FONT "Font"
 #define CONFIG_TEXT_SIZE "TextSize"
@@ -70,7 +69,6 @@ double frame_sleep()
 
 // ============================== Configuration ===============================
 
-static float star_color[] = { 1, 0.8, 0, 1 };
 static float text_color[] = { 0, 1, 0, 1 };
 struct config config = {
     .stars = 7000,
@@ -83,7 +81,6 @@ struct config config = {
     .min_fps = 40,
     .max_fps = 60,
     .default_zoom = 25,
-    .star_color = &star_color,
     .show_status = true,
     .font = "/usr/share/fonts/TTF/FreeSans.ttf",
     .text_size = 14,
@@ -149,8 +146,6 @@ void init_config(const char* filename)
             sscanf(value, "%lf", &config.default_zoom);
         } else if (!strncmp(key, CONFIG_MSAA, sizeof(CONFIG_MSAA)-1)) {
             sscanf(value, "%d", &config.msaa);
-        } else if (!strncmp(key, CONFIG_STAR_COLOR, sizeof(CONFIG_STAR_COLOR)-1)) {
-            sscanf(value, "%f %f %f %f", &star_color[0], &star_color[1], &star_color[2], &star_color[3]);
         } else if (!strncmp(key, CONFIG_SHOW_STATUS, sizeof(CONFIG_SHOW_STATUS)-1)) {
             config.show_status = !strncmp(value, "true", 4)
                               || !strncmp(value, "True", 4)
