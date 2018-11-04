@@ -19,6 +19,8 @@ static int win_width = 1024; // actual size of the client area
 static int win_height = 1024;
 
 
+
+///////////////////////////////////////////////////////////////////////////////
 // ============================== Text rendering ==============================
 
 static GLuint text_shader = GL_INVALID_VALUE;
@@ -29,7 +31,7 @@ static GLint text_projection_uniform;
 static GLint text_pos_uniform;
 static mat4x4 text_projection;
 static GLuint text_vbo = GL_INVALID_VALUE;
-static FT_Library ft;
+static FT_Library freetype;
 static char* text_buff = NULL;
 static size_t text_buff_length = 1024;
 
@@ -53,33 +55,34 @@ struct font_point
 
 static struct font
 {
-    int size;   // font size
-    int height; // distance between baselines
-    GLuint tex; // texture object
-    int tex_w;  // width of texture in pixels
-    int tex_h;  // height of texture in pixels
+    int size;           // font size
+    int height;         // distance between baselines
+    GLuint texture;     // texture object
+    int texture_width;  // width of texture in pixels
+    int texture_height; // height of texture in pixels
     struct c
     {
-        int dx; // advance.x
-        int dy; // advance.y
+        int x;  // bitmap.left;
+        int y;  // bitmap.top;
         int w;  // bitmap.width;
         int h;  // bitmap.height;
-        int x;  // bitmap_left;
-        int y;  // bitmap_top;
+        int dx; // advance.x
+        int dy; // advance.y
         int tx; // x offset of the glyph in the texture
         int ty; // y offset of the glyph in the texture
-    } c[128];   // characters
-} font;
+    } chars[128]; // characters
+} *font = NULL;
 
 // Inspired by https://en.wikibooks.org/wiki/OpenGL_Programming/Modern_OpenGL_Tutorial_Text_Rendering_02
-static void new_font(const char* font_path, int size, struct font* font)
+static struct font* new_font(const char* font_path, int size)
 {
-    font->tex = GL_INVALID_VALUE;
     const int texture_max_width = 1024;
+    struct font* font = calloc(1, sizeof(struct font));
     FT_Face face;
-    if (FT_New_Face(ft, font_path, 0, &face)) {
+    if (FT_New_Face(freetype, font_path, 0, &face)) {
         fprintf(stderr, "Cannot open font '%s'\n", font_path);
-        return;
+        free(font);
+        return NULL;
     }
 
     font->size = size;
@@ -88,18 +91,17 @@ static void new_font(const char* font_path, int size, struct font* font)
     FT_GlyphSlot g = face->glyph;
     int roww = 0;
     int rowh = 0;
-    font->tex_w = 0;
-    font->tex_h = 0;
-    memset(font->c, 0, sizeof(font->c));
-    for (int i = 32; i < 128; i++) {
+    font->texture_width = 0;
+    font->texture_height = 0;
+    for (int i = 32; i <= 126; i++) {  // all characters from space to tilde
         if (FT_Load_Char(face, i, FT_LOAD_RENDER)) {
             fprintf(stderr, "Font '%s': cannot load character '%c'\n", font_path, i);
             continue;
         }
         if (roww + g->bitmap.width + 1 >= texture_max_width) {
-            if (roww > font->tex_w)
-                font->tex_w = roww;
-            font->tex_h += rowh;
+            if (roww > font->texture_width)
+                font->texture_width = roww;
+            font->texture_height += rowh;
             roww = 0;
             rowh = 0;
         }
@@ -107,19 +109,17 @@ static void new_font(const char* font_path, int size, struct font* font)
         if (g->bitmap.rows > rowh)
             rowh = g->bitmap.rows;
     }
-    if (roww > font->tex_w)
-        font->tex_w = roww;
-    font->tex_h += rowh;
+    if (roww > font->texture_width)
+        font->texture_width = roww;
+    font->texture_height += rowh;
 
     glActiveTexture(GL_TEXTURE0);
-    glGenTextures(1, &font->tex);
-    glBindTexture(GL_TEXTURE_2D, font->tex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, font->tex_w, font->tex_h, 0, GL_ALPHA, GL_UNSIGNED_BYTE, 0);
+    glGenTextures(1, &font->texture);
+    glBindTexture(GL_TEXTURE_2D, font->texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, font->texture_width, font->texture_height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, 0);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     int ox = 0;
     int oy = 0;
@@ -136,20 +136,21 @@ static void new_font(const char* font_path, int size, struct font* font)
         }
         glTexSubImage2D(GL_TEXTURE_2D, 0, ox, oy, g->bitmap.width, g->bitmap.rows,
                 GL_ALPHA, GL_UNSIGNED_BYTE, g->bitmap.buffer);
-        font->c[i].dx = g->advance.x >> 6;
-        font->c[i].dy = g->advance.y >> 6;
-        font->c[i].w = g->bitmap.width;
-        font->c[i].h = g->bitmap.rows;
-        font->c[i].x = g->bitmap_left;
-        font->c[i].y = g->bitmap_top;
-        font->c[i].tx = ox;
-        font->c[i].ty = oy;
+        font->chars[i].dx = g->advance.x >> 6;
+        font->chars[i].dy = g->advance.y >> 6;
+        font->chars[i].w = g->bitmap.width;
+        font->chars[i].h = g->bitmap.rows;
+        font->chars[i].x = g->bitmap_left;
+        font->chars[i].y = g->bitmap_top;
+        font->chars[i].tx = ox;
+        font->chars[i].ty = oy;
         if (g->bitmap.rows > rowh)
             rowh = g->bitmap.rows;
         ox += g->bitmap.width + 1;
     }
 
     FT_Done_Face(face);
+    return font;
 }
 
 static void draw_text(struct font* font, int x, int y, enum align align, const char* restrict format, ...)
@@ -177,18 +178,17 @@ static void draw_text(struct font* font, int x, int y, enum align align, const c
     while (*p) {
         int line_length = 0;
         x = 0;
-
         while (*p != '\0' && *p != '\n') {
-            struct c* c = &font->c[*p];
+            struct c* c = &font->chars[*p];
             if (c->w && c->h) {
                 int left   = x + c->x;
                 int right  = x + c->x + c->w;
                 int top    = y + c->y - c->h;
                 int bottom = y + c->y;
-                float tex_left = (float)c->tx / font->tex_w;
-                float tex_right = (float)(c->tx + c->w) / font->tex_w;
-                float tex_top = (float)(c->ty + c->h) / font->tex_h;
-                float tex_bottom = (float)c->ty / font->tex_h;
+                float tex_left = (float)c->tx / font->texture_width;
+                float tex_right = (float)(c->tx + c->w) / font->texture_width;
+                float tex_top = (float)(c->ty + c->h) / font->texture_height;
+                float tex_bottom = (float)c->ty / font->texture_height;
                 *(coord++) = (struct font_point){ left,  bottom, tex_left,  tex_bottom };
                 *(coord++) = (struct font_point){ right, bottom, tex_right, tex_bottom };
                 *(coord++) = (struct font_point){ left,  top,    tex_left,  tex_top };
@@ -214,7 +214,7 @@ static void draw_text(struct font* font, int x, int y, enum align align, const c
         text_pos[1] -= y;  // y is negative
     int n = coord - coords;  // total number of printable characters
 
-    glBindTexture(GL_TEXTURE_2D, font->tex);
+    glBindTexture(GL_TEXTURE_2D, font->texture);
     glUseProgram(text_shader);
     glUniform1i(text_texture_uniform, 0);
     glUniform2fv(text_pos_uniform, 1, text_pos);
@@ -227,10 +227,12 @@ static void draw_text(struct font* font, int x, int y, enum align align, const c
 }
 
 
+
+///////////////////////////////////////////////////////////////////////////////
 // ============================= Window functions =============================
 
-static bool glfw_initialized = false;
 static GLFWwindow* window = NULL;
+static bool glfw_initialized = false;
 static bool fullscreen = false;
 static bool maximized = true;
 static int restored_x;
@@ -296,6 +298,8 @@ static void glfw_resize(GLFWwindow* window, int width, int height)
 }
 
 
+
+///////////////////////////////////////////////////////////////////////////////
 // ============================= General graphics =============================
 
 static vec2 view_center = { 0, 0 };
@@ -314,8 +318,7 @@ static GLint star_color_attribute = GL_INVALID_VALUE;
 static GLuint star_position_vbo = GL_INVALID_VALUE;
 static GLuint star_color_vbo = GL_INVALID_VALUE;
 
-
-// Log the last error associated with the object
+// Log the latest error associated with the object
 static void gl_log(GLuint object)
 {
     GLint log_length = 0;
@@ -386,7 +389,7 @@ static GLuint make_shader_program(const char *vertex_file, const char *fragment_
     return program;
 }
 
-// Client area needs recalculation
+// Recalculate client area
 static void update_view()
 {
     need_update_view = false;
@@ -485,9 +488,10 @@ void finalize_graphics()
         free(star_texture_values);
         star_texture_values = NULL;
     }
-    if (font.tex != GL_INVALID_VALUE) {
-        glDeleteTextures(1, &font.tex);
-        font.tex = GL_INVALID_VALUE;
+    if (font) {
+        glDeleteTextures(1, &font->texture);
+        free(font);
+        font = NULL;
     }
     if (text_buff) {
         free(text_buff);
@@ -560,8 +564,6 @@ GLFWwindow* init_graphics()
 
     glGenTextures(1, &star_texture);
     glBindTexture(GL_TEXTURE_2D, star_texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glUseProgram(star_shader);
@@ -572,7 +574,7 @@ GLFWwindow* init_graphics()
     if (config.show_status) {
         text_buff = malloc(text_buff_length * sizeof(*text_buff));
         glGenBuffers(1, &text_vbo);
-        if (FT_Init_FreeType(&ft)) {
+        if (FT_Init_FreeType(&freetype)) {
             fputs("FT_Init_FreeType failed\n", stderr);
             finalize_graphics();
             return NULL;
@@ -587,8 +589,10 @@ GLFWwindow* init_graphics()
         text_char_pos_attrib = glGetAttribLocation(text_shader, "char_pos");
         text_texture_uniform = glGetUniformLocation(text_shader, "texture");
         text_color_uniform = glGetUniformLocation(text_shader, "color");
-        new_font(config.font, config.text_size, &font);
-        if (font.tex == GL_INVALID_VALUE) {
+        glUseProgram(text_shader);
+        glUniform4fv(text_color_uniform, 1, *config.text_color);
+        font = new_font(config.font, config.text_size);
+        if (!font) {
             finalize_graphics();
             return NULL;
         }
@@ -599,7 +603,6 @@ GLFWwindow* init_graphics()
 
 void draw()
 {
-    double perf_draw_start = glfwGetTime();
     // Update window and client area state
     if (input.double_click || input.f % 2 || (maximized != glfwGetWindowAttrib(window, GLFW_MAXIMIZED)))
         update_window();
@@ -620,14 +623,12 @@ void draw()
     if (config.show_status) {
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glUseProgram(text_shader);
-        glUniform4fv(text_color_uniform, 1, *config.text_color);
-
         char zoom_text[64];
         if (zoom >= 2 * config.default_zoom)
             snprintf(zoom_text, sizeof(zoom_text), "%.0fx", zoom/config.default_zoom);
         else
             snprintf(zoom_text, sizeof(zoom_text), "1:%.0f", (float)config.default_zoom/zoom);
-        draw_text(&font, win_width - font.c[' '].dx, font.c[' '].dx/2, align_top_right,
+        draw_text(font, win_width - font->chars[' '].dx, font->chars[' '].dx/2, align_top_right,
                 "X: %.2f  Y: %.2f\n"
                 "Zoom: %s\n"
                 "%.0f FPS",
@@ -637,5 +638,4 @@ void draw()
     }
 
     glfwSwapBuffers(window);
-    perf_draw = glfwGetTime() - perf_draw_start;
 }

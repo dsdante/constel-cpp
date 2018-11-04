@@ -164,9 +164,6 @@ void init_config(const char* filename)
 
 // =========================== Performance counters ===========================
 
-double perf_build;
-double perf_accel;
-double perf_draw;
 static float fps_history[FPS_BUFF_SIZE];
 static int fps_count = 0;
 static int fps_pointer = 0;

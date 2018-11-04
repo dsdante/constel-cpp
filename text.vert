@@ -8,5 +8,5 @@ out vec2 texture_pos;
 void main(void)
 {
     gl_Position = projection * vec4(text_pos + char_pos.xy, 0, 1);
-    texture_pos = char_pos.zw;
+    texture_pos = char_pos.pq;
 }

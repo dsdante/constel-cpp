@@ -244,7 +244,6 @@ void world_frame(double time)
     // Build Barnes-Hut qtree
     //************************
 
-    perf_build = glfwGetTime();
     // Root node
     double xmin_world = INFINITY;
     double ymin_world = INFINITY;
@@ -296,14 +295,12 @@ void world_frame(double time)
             quad = quad->children[quadrant];
         } while (quad->size);
     }
-    perf_build = glfwGetTime() - perf_build;
 
 
     //*************************************
     // Calculate acceleration and position
     //*************************************
 
-    perf_accel = glfwGetTime();
     // Wake up the threads in the pool
     for (int i = 1; i < cores; i++)
         sem_post(&job_start);
@@ -314,7 +311,6 @@ void world_frame(double time)
         stars[i].x += frame_time * (stars[i].speed.x + stars[i].accel.x);  // velocity Verlet integration
         stars[i].y += frame_time * (stars[i].speed.y + stars[i].accel.y);
     }
-    perf_accel = glfwGetTime() - perf_accel;
 
     // Display coordinates in GLfloat[]
     for (int i = 0; i < config.stars; i++) {
