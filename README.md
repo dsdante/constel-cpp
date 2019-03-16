@@ -1,5 +1,5 @@
 # Constel
-A galaxy model
+A C++ rewrite of my [galaxy model](https://github.com/dsdante/constel)
 
 Stars in a [Barnes–Hut quad-tree](https://en.wikipedia.org/wiki/Barnes%E2%80%93Hut_simulation) are processed in parallel using the [velocity Verlet method](https://en.wikipedia.org/wiki/Verlet_integration#Velocity_Verlet), then drawn as OpenGL particles.
 
