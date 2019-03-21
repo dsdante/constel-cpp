@@ -4,6 +4,8 @@
 // https://en.wikipedia.org/wiki/Barnes–Hut_simulation
 // ****************************************************************************
 
+#include "world.hpp"
+
 #include <assert.h>
 #include <pthread.h>
 #include <semaphore.h>
@@ -14,28 +16,24 @@
 #include <math.h>
 #include <unistd.h>
 #include <GLFW/glfw3.h>
-#include "common.h"
 #include "linmath.h"
-#include "world.h"
+#include "common.hpp"
 
 // Star or quadrant
-struct node
-{                  // inherits vecd2
-    struct vecd2;  // center of mass
+struct node: vecd2 // the vec2d is the center of mass
+{
     double mass;
     double size;  // zero for a star
 };
 
-static struct star
+static struct star: node
 {
-    struct node;  // inherits struct node
     struct vecd2 speed;
     struct vecd2 accel;  // already multiplied by t/2, for better performance
 } *stars = NULL;
 
-static struct quad
+static struct quad: node
 {
-    struct node;  // inherits struct node
     struct vecd2 center; // geometrical center
     struct quad* children[4];  // 4 quadrants
 } *quads = NULL;
@@ -180,16 +178,16 @@ void init_world()
     if (cores > 1) {
         sem_init(&job_start, 0, 0);
         sem_init(&job_finish, 0, 0);
-        threads = malloc(cores * sizeof(pthread_t));
+        threads = (pthread_t*)malloc(cores * sizeof(pthread_t));
         for (int i = 1; i < cores; i++)  // job #0 is run synchronously
             pthread_create(&threads[i], NULL, &update_stars_job, (void*)(intptr_t)i);
     }
 
     // Init stars
-    stars = calloc(config.stars, sizeof(struct star));
-    quads = calloc(2 * config.stars, sizeof(struct quad));  // TODO: dynamic reallocation
-    disp_star_position = malloc(config.stars * sizeof(vec2));
-    disp_star_color = malloc(config.stars * sizeof(vec3));
+    stars = (struct star*)calloc(config.stars, sizeof(struct star));
+    quads = (struct quad*)calloc(2 * config.stars, sizeof(struct quad));  // TODO: dynamic reallocation
+    disp_star_position = (vec2*)malloc(config.stars * sizeof(vec2));
+    disp_star_color = (vec3*)malloc(config.stars * sizeof(vec3));
     double rmax = sqrt(config.stars) / config.galaxy_density;
     for (int i = 0; i < config.stars; i++) {
         double r = frand(0, rmax);

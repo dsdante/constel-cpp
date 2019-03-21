@@ -1,9 +1,10 @@
+#include "input.hpp"
+
 #include <assert.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <GLFW/glfw3.h>
-#include "input.h"
 
 #define DOUBLE_CLICK_INTERVAL 0.5
 #define DOUBLE_CLICK_TOLERANCE 4
@@ -58,6 +59,7 @@ static void glfw_mouse_button(GLFWwindow *window, int button, int action, int mo
     glfwGetCursorPos(window, &cur_mousex, &cur_mousey);
     switch(button) {
     case GLFW_MOUSE_BUTTON_LEFT:
+    {
         input.mouse_left = pressed;
         if (!pressed)
             break;
@@ -73,6 +75,7 @@ static void glfw_mouse_button(GLFWwindow *window, int button, int action, int mo
             glfwGetCursorPos(window, &clickx, &clicky);
         }
         break;
+    }
     case GLFW_MOUSE_BUTTON_MIDDLE:
         input.mouse_middle = pressed;
         break;

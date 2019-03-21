@@ -1,11 +1,10 @@
-#define _GNU_SOURCE
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <GLFW/glfw3.h>
-#include "common.h"
+#include "common.hpp"
 #include "linmath.h"
 
 #define FPS_BUFF_SIZE 256

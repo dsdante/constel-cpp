@@ -1,10 +1,11 @@
 #include <stdlib.h>
 #include <time.h>
 #include <GLFW/glfw3.h>
-#include "common.h"
-#include "graphics.h"
-#include "input.h"
-#include "world.h"
+
+#include "common.hpp"
+#include "graphics.hpp"
+#include "input.hpp"
+#include "world.hpp"
 
 void exit_finalize(int code)
 {

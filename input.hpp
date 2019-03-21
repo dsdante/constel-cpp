@@ -2,6 +2,7 @@
 #define INPUT_H
 
 #include <stdbool.h>
+#include <GLFW/glfw3.h>
 
 // all members must be resettable with memset(0)
 extern struct input {
@@ -20,7 +21,7 @@ extern struct input {
 } input;
 
 void init_input(GLFWwindow* window);
-void process_input();
+void process_input(GLFWwindow* window);
 void finalize_input();
 
 #endif // INPUT_H

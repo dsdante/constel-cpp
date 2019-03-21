@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+#define GL_GLEXT_PROTOTYPES
 #include <errno.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -9,8 +10,8 @@
 #include <GL/glew.h>
 #include <GL/gl.h>
 #include <GLFW/glfw3.h>
-#include "common.h"
-#include "input.h"
+#include "common.hpp"
+#include "input.hpp"
 #include "linmath.h"
 
 #define ZOOM_SENSITIVITY 1.2
@@ -77,7 +78,7 @@ static struct font
 static struct font* new_font(const char* font_path, int size)
 {
     const int texture_max_width = 1024;
-    struct font* font = calloc(1, sizeof(struct font));
+    struct font* font = (struct font*)calloc(1, sizeof(struct font));
     FT_Face face;
     if (FT_New_Face(freetype, font_path, 0, &face)) {
         fprintf(stderr, "Cannot open font '%s'\n", font_path);
@@ -153,7 +154,7 @@ static struct font* new_font(const char* font_path, int size)
     return font;
 }
 
-static void draw_text(struct font* font, int x, int y, enum align align, const char* restrict format, ...)
+static void draw_text(struct font* font, int x, int y, enum align align, const char* format, ...)
 {
     int length;
     va_list argptr;
@@ -163,7 +164,7 @@ static void draw_text(struct font* font, int x, int y, enum align align, const c
         va_end(argptr);
         if (length >= text_buff_length) {
             text_buff_length = 2 * length;
-            text_buff = realloc(text_buff, text_buff_length);
+            text_buff = (char*)realloc(text_buff, text_buff_length);
             continue;
         }
     } while (false);
@@ -179,7 +180,7 @@ static void draw_text(struct font* font, int x, int y, enum align align, const c
         int line_length = 0;
         x = 0;
         while (*p != '\0' && *p != '\n') {
-            struct c* c = &font->chars[*p];
+            font::c* c = &font->chars[*p];
             if (c->w && c->h) {
                 int left   = x + c->x;
                 int right  = x + c->x + c->w;
@@ -418,14 +419,15 @@ static void update_view()
         int star_texture_size = 2.0f * star_size * zoom;
         if (star_texture_buff_size < star_texture_size * star_texture_size) {
             star_texture_buff_size = star_texture_size * star_texture_size;
-            star_texture_values = realloc(star_texture_values, star_texture_buff_size * sizeof(float));
+            star_texture_values = (float*)realloc(star_texture_values, star_texture_buff_size * sizeof(float));
         }
 
         for (int x = 0; x < (star_texture_size+1)/2; x++)
         for (int y = 0; y <= x; y++) {
-            float dx = (0.5f * star_texture_size - x) / zoom / star_size * 20 ;
-            float dy = (0.5f * star_texture_size - y) / zoom / star_size * 20 ;
-            float alpha = 1.0f / (dx*dx + dy*dy);
+            float dx = (0.5f * star_texture_size - x) / zoom / star_size;
+            float dy = (0.5f * star_texture_size - y) / zoom / star_size;
+            float alpha = 0.001f / (dx*dx + dy*dy);
+            //float alpha = exp(-100.0*(dx*dx + dy*dy));  // Airy disk approximated with a Gaussian profile
             int x2 = star_texture_size-1-x;
             int y2 = star_texture_size-1-y;
             // exploit symmetry
@@ -469,15 +471,15 @@ void finalize_graphics()
         text_shader = GL_INVALID_VALUE;
     }
     if (star_position_vbo != GL_INVALID_VALUE) {
-        glDeleteBuffers(1, (const GLuint[]){ star_position_vbo });
+        glDeleteBuffers(1, &star_position_vbo);
         star_position_vbo = GL_INVALID_VALUE;
     }
     if (star_color_vbo != GL_INVALID_VALUE) {
-        glDeleteBuffers(1, (const GLuint[]){ star_color_vbo });
+        glDeleteBuffers(1, &star_color_vbo);
         star_color_vbo = GL_INVALID_VALUE;
     }
     if (text_vbo != GL_INVALID_VALUE) {
-        glDeleteBuffers(1, (const GLuint[]){ text_vbo });
+        glDeleteBuffers(1, &text_vbo);
         text_vbo = GL_INVALID_VALUE;
     }
     if (star_texture != GL_INVALID_VALUE) {
@@ -518,7 +520,7 @@ GLFWwindow* init_graphics()
     }
     glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
     glfwWindowHint(GLFW_SAMPLES, config.msaa);
-    window = glfwCreateWindow(win_width, win_height, "Constel", NULL, NULL);
+    window = glfwCreateWindow(win_width, win_height, "Constel++", NULL, NULL);
     if (!window) {
         finalize_graphics();
         return NULL;
@@ -572,7 +574,7 @@ GLFWwindow* init_graphics()
 
     // Init text
     if (config.show_status) {
-        text_buff = malloc(text_buff_length * sizeof(*text_buff));
+        text_buff = (char*)malloc(text_buff_length * sizeof(*text_buff));
         glGenBuffers(1, &text_vbo);
         if (FT_Init_FreeType(&freetype)) {
             fputs("FT_Init_FreeType failed\n", stderr);
@@ -611,6 +613,7 @@ void draw()
     glClear(GL_COLOR_BUFFER_BIT);
 
     // Draw stars
+    // comment the next line for a more realistic and less spectacular rendering
     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
     glUseProgram(star_shader);
     glEnableVertexAttribArray(star_position_attribute);
