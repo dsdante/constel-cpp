@@ -1,8 +1,8 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#include <math.h>
-#include <stdbool.h>
+#include <string>
+#include <cmath>
 #include "linmath.h"
 
 #ifndef M_PI
@@ -29,9 +29,9 @@ extern struct config
     double default_zoom;
     int msaa;  // anti-alisaing samples
     bool show_status;
-    char* font;
+    std::string font;
     double text_size;
-    vec4* text_color;
+    vec4 text_color;
 } config;
 
 extern vec2* disp_star_position;
@@ -40,12 +40,12 @@ extern double perf_build;
 extern double perf_accel;
 extern double perf_draw;
 
-char* read_file(const char *filename, int *length);
+const std::string read_file(const std::string& filename);
 double frame_sleep();
-void init_config(const char* filename);
+void init_config(const std::string& filename);
 void finalize_config();
-float get_fps(int frame);
+float get_fps(size_t frame);
 float get_fps_period(float period);
-void set_fps(float value);
+void add_fps(float value);
 
 #endif // COMMON_H

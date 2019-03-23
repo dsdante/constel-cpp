@@ -1,3 +1,5 @@
+#include<string>
+
 #include <stdlib.h>
 #include <time.h>
 #include <GLFW/glfw3.h>
@@ -21,7 +23,7 @@ int main(int argc, char **argv)
     time_t seed = time(NULL);
     //printf("Random seed: 0x%lx\n", seed);
     srand(seed);
-    char* config_file = NULL;
+    std::string config_file;
     if (argc >= 2)
         config_file = argv[1];
     init_config(config_file);

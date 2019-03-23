@@ -1,5 +1,5 @@
 # Constel++
-A C++ rewrite of my [galaxy model](https://github.com/dsdante/constel)
+My ongoing C++ rewriting of own [galaxy model](https://github.com/dsdante/constel)
 
 Stars in a [Barnes–Hut quad-tree](https://en.wikipedia.org/wiki/Barnes%E2%80%93Hut_simulation) are processed in parallel using the [velocity Verlet method](https://en.wikipedia.org/wiki/Verlet_integration#Velocity_Verlet), then drawn as OpenGL particles.
 
@@ -20,6 +20,7 @@ Physical and visual options can be set in constel.conf.
 
 
 ### To do
+ * Cross-platform code (GCC and MSVC) and multithreading (Linux and Windows)
  * Reduce entropy
  * Collisions and merging
  * Mean field method

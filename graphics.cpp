@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 #define GL_GLEXT_PROTOTYPES
+#include <string>
 #include <errno.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -342,13 +343,13 @@ static void gl_log(GLuint object)
 
 static GLuint make_shader(GLenum type, const char *filename)
 {
-    GLint length;
-    GLchar *source = read_file(filename, &length);
-    if (!source)
-        return 0;
+    auto file = read_file(std::string(filename));
+    GLint length = file.length();
+    GLchar *source = new char[length];
+    strcpy(source, file.c_str());
     GLuint shader = glCreateShader(type);
     glShaderSource(shader, 1, (const GLchar* const*)&source, &length);
-    free(source);
+    delete source;
     glCompileShader(shader);
     GLint shader_ok;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &shader_ok);
@@ -592,8 +593,8 @@ GLFWwindow* init_graphics()
         text_texture_uniform = glGetUniformLocation(text_shader, "texture");
         text_color_uniform = glGetUniformLocation(text_shader, "color");
         glUseProgram(text_shader);
-        glUniform4fv(text_color_uniform, 1, *config.text_color);
-        font = new_font(config.font, config.text_size);
+        glUniform4fv(text_color_uniform, 1, config.text_color);
+        font = new_font(config.font.c_str(), config.text_size);
         if (!font) {
             finalize_graphics();
             return NULL;
