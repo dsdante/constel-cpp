@@ -21,6 +21,7 @@ Physical and visual options can be set in constel.conf.
 
 ### To do
  * Cross-platform code (GCC and MSVC) and multithreading (Linux and Windows)
+ * Get rid of linmath.h
  * Reduce entropy
  * Collisions and merging
  * Mean field method

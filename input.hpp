@@ -1,7 +1,6 @@
 #ifndef INPUT_H
 #define INPUT_H
 
-#include <stdbool.h>
 #include <GLFW/glfw3.h>
 
 // all members must be resettable with memset(0)

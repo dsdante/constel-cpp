@@ -1,20 +1,13 @@
-#include <cerrno>
+#include <algorithm>
+#include <cctype>
 #include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <cstring>
 #include <fstream>
-#include <iostream>
-#include <limits>
 #include <regex>
 #include <sstream>
-#include <streambuf>
-#include <string>
 #include <thread>
 #include <vector>
 #include <GLFW/glfw3.h>
 #include "common.hpp"
-#include "linmath.h"
 
 std::string config_filename = "constel.conf";
 const std::string config_stars = "Stars";

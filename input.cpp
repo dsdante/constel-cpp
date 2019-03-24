@@ -1,13 +1,10 @@
+#include <cassert>
+#include <cstdlib>
+#include <limits>
 #include "input.hpp"
 
-#include <assert.h>
-#include <math.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <GLFW/glfw3.h>
-
-#define DOUBLE_CLICK_INTERVAL 0.5
-#define DOUBLE_CLICK_TOLERANCE 4
+const double double_click_interval = 0.5;
+const int double_click_tolerance = 4;
 
 struct input input = { 0 };
 
@@ -48,9 +45,9 @@ static void glfw_key(GLFWwindow* window, int key, int scancode, int action, int 
     }
 }
 
-static void glfw_mouse_button(GLFWwindow *window, int button, int action, int mods)
+static void glfw_mouse_button(GLFWwindow* window, int button, int action, int mods)
 {
-    static double double_click_start = -INFINITY;
+    static double double_click_start = -std::numeric_limits<double>::infinity();
     static double clickx = 0;
     static double clicky = 0;
 
@@ -64,12 +61,12 @@ static void glfw_mouse_button(GLFWwindow *window, int button, int action, int mo
         if (!pressed)
             break;
         double time = glfwGetTime();
-        if (time - double_click_start <= DOUBLE_CLICK_INTERVAL
-              && abs(cur_mousex-clickx) <= DOUBLE_CLICK_TOLERANCE
-              && abs(cur_mousey-clicky) <= DOUBLE_CLICK_TOLERANCE) {
+        if (time - double_click_start <= double_click_interval
+              && abs(cur_mousex-clickx) <= double_click_tolerance
+              && abs(cur_mousey-clicky) <= double_click_tolerance) {
             input.double_click = true;
             input.mouse_left = false;
-            double_click_start = -INFINITY;
+            double_click_start = -std::numeric_limits<double>::infinity();
         } else {
             double_click_start = time;
             glfwGetCursorPos(window, &clickx, &clicky);
@@ -85,7 +82,7 @@ static void glfw_mouse_button(GLFWwindow *window, int button, int action, int mo
     }
 }
 
-static void glfw_scroll(GLFWwindow *window, double xoffset, double yoffset)
+static void glfw_scroll(GLFWwindow* window, double xoffset, double yoffset)
 {
     input.scroll += yoffset;
 }
@@ -99,7 +96,7 @@ void init_input(GLFWwindow* window)
     glfwGetCursorPos(window, &prev_mousex, &prev_mousey);
 }
 
-void process_input(GLFWwindow *window)
+void process_input(GLFWwindow* window)
 {
     // Reset all toggles
     input.panx = 0;
