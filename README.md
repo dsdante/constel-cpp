@@ -20,6 +20,7 @@ Physical and visual options can be set in constel.conf.
 
 
 ### To do
+ * Sensible fatal error messages
  * Cross-platform code (GCC and MSVC) and multithreading (Linux and Windows)
  * Get rid of linmath.h
  * Reduce entropy

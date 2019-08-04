@@ -1,10 +1,33 @@
 #ifndef INPUT_H
 #define INPUT_H
 
+#include <memory>
 #include <GLFW/glfw3.h>
 
-// all members must be resettable with memset(0)
-extern struct input {
+class Input
+{
+private:
+    static constexpr double double_click_interval = 0.5;  // maximum double click interval in seconds
+    static const int double_click_tolerance = 4;  // maximum double click mouse slip in pixels
+
+    // GLFW callbacks
+    static void glfw_key(GLFWwindow* window, int key, int scancode, int action, int mods);
+    static void glfw_mouse_button(GLFWwindow* window, int button, int action, int mods);
+    static void glfw_scroll(GLFWwindow* window, double xoffset, double yoffset);
+
+    Input() = default;
+
+    GLFWwindow* window;
+    double prev_mousex;
+    double prev_mousey;
+
+public:
+    static Input instance;
+
+    void initialize(GLFWwindow* window);
+    void frame();
+
+    // All members are zero-initialized
     bool up;
     bool down;
     bool left;
@@ -17,10 +40,8 @@ extern struct input {
     double scroll;
     int panx;
     int pany;
-} input;
+};
 
-void init_input(GLFWwindow* window);
-void process_input(GLFWwindow* window);
-void finalize_input();
+extern Input& input;
 
-#endif // INPUT_H
+#endif  // INPUT_H

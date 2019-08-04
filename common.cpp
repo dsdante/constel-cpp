@@ -9,40 +9,17 @@
 #include <GLFW/glfw3.h>
 #include "common.hpp"
 
-std::string config_filename = "constel.conf";
-const std::string config_stars = "Stars";
-const std::string config_galaxy_density = "GalaxyDens";
-const std::string config_star_speed = "StarSpeed";
-const std::string config_gravity = "Gravity";
-const std::string config_epsilon = "Epsilon";
-const std::string config_accuracy = "Accuracy";
-const std::string config_speed = "Speed";
-const std::string config_min_fps = "MinFPS";
-const std::string config_max_fps = "MaxFPS";
-const std::string config_default_zoom = "DefaultZoom";
-const std::string config_msaa = "MSAA";
-const std::string config_show_status = "ShowStatus";
-const std::string config_font = "Font";
-const std::string config_text_size = "TextSize";
-const std::string config_text_color = "TextColor";
+vec2* disp_star_position = nullptr;  // display coordinates, float
+vec3* disp_star_color = nullptr;  // star colors
 
-vec2* disp_star_position = NULL; // display coordinates, float
-vec3* disp_star_color = NULL; // star colors
-
-bool equal_icase(const std::string& a, const std::string& b)
+std::string read_file(const std::string& filename)
 {
-    if (a.length() != b.length())
-        return false;
-    return std::equal(a.begin(), a.end(), b.begin(),
-            [](char ca, char cb){ return std::tolower(ca) == std::tolower(cb); });
-}
-
-const std::string read_file(const std::string& filename)
-{
-    std::ifstream file(filename);
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    return buffer.str();
+    std::ifstream file(filename, std::ios::in | std::ios::ate);
+    std::string content;
+    content.reserve(file.tellg());
+    file.seekg(0);
+    content.assign((std::istreambuf_iterator<char>(file)), (std::istreambuf_iterator<char>()));
+    return content;
 }
 
 // returns actual frame duration
@@ -61,73 +38,47 @@ double frame_sleep()
     return last_interval;
 }
 
+
 // ============================== Configuration ===============================
 
-struct config config = {
-    .stars = 7000,
-    .galaxy_density = 10,
-    .star_speed = 1.4,
-    .gravity = 0.002,
-    .epsilon = 2,
-    .accuracy = 0.7,
-    .speed = 1,
-    .min_fps = 40,
-    .max_fps = 60,
-    .default_zoom = 25,
-    .show_status = true,
-    .font = "/usr/share/fonts/TTF/FreeSans.ttf",
-    .text_size = 14,
-    .text_color = { 0, 1, 0, 1 },
-};
+Config config;
 
-void finalize_config()
+void Config::load(const std::string& filename)
 {
-}
-
-void init_config(const std::string& filename)
-{
-    if (filename.length() > 0)
-        config_filename = filename;
-    std::ifstream file(config_filename);
+    if (!filename.empty())
+        this->filename = filename;
+    std::ifstream file(this->filename);
     std::string line;
     std::regex regex(R"(^\s*(.+?)\s+(.*?)\s*(?:#.*)?$)");  // (key) (values with spaces) # comment
     std::smatch match;
     while (std::getline(file, line)) {
         if (!std::regex_match(line, match, regex))
             continue;
-        auto key = match[1].str();
-        auto value = match[2].str();
-        if (equal_icase(key, config_stars)) {
-            config.stars = std::stoi(value);
-        } else if (equal_icase(key, config_galaxy_density)) {
-            config.galaxy_density = std::stod(value);
-        } else if (equal_icase(key, config_star_speed)) {
-            config.star_speed = std::stod(value);
-        } else if (equal_icase(key, config_gravity)) {
-            config.gravity = std::stod(value);
-        } else if (equal_icase(key, config_epsilon)) {
-            config.epsilon = std::stod(value);
-        } else if (equal_icase(key, config_accuracy)) {
-            config.accuracy = std::stod(value);
-        } else if (equal_icase(key, config_speed)) {
-            config.speed = std::stod(value);
-        } else if (equal_icase(key, config_min_fps)) {
-            config.min_fps = std::stod(value);
-        } else if (equal_icase(key, config_max_fps)) {
-            config.max_fps = std::stod(value);
-        } else if (equal_icase(key, config_default_zoom)) {
-            config.default_zoom = std::stod(value);
-        } else if (equal_icase(key, config_msaa)) {
-            config.msaa = std::stoi(value);
-        } else if (equal_icase(key, config_show_status)) {
-            config.show_status = equal_icase(value, "true") || (value == "1");
-        } else if (equal_icase(key, config_font)) {
-            config.font = value;
-        } else if (equal_icase(key, config_text_size)) {
-            config.text_size = std::stoi(value);
-        } else if (equal_icase(key, config_text_color)) {
-            std::stringstream strstr(value);
-            strstr >> config.text_color[0] >> config.text_color[1] >> config.text_color[2] >> config.text_color[3];
+        try {
+            Parameter key = parameter_names.at(match[1].str());
+            const std::string& value = match[2].str();
+            switch (key) {
+            case Parameter::stars:          config.stars          = std::stoi(value); break;
+            case Parameter::galaxy_density: config.galaxy_density = std::stod(value); break;
+            case Parameter::star_speed:     config.star_speed     = std::stod(value); break;
+            case Parameter::gravity:        config.gravity        = std::stod(value); break;
+            case Parameter::epsilon:        config.epsilon        = std::stod(value); break;
+            case Parameter::accuracy:       config.accuracy       = std::stod(value); break;
+            case Parameter::speed:          config.speed          = std::stod(value); break;
+            case Parameter::min_fps:        config.min_fps        = std::stod(value); break;
+            case Parameter::max_fps:        config.max_fps        = std::stod(value); break;
+            case Parameter::default_zoom:   config.default_zoom   = std::stod(value); break;
+            case Parameter::msaa:           config.msaa           = std::stoi(value); break;
+            case Parameter::show_status:    config.show_status    = IgnoreCase()(value, "true") || (value == "1"); break;
+            case Parameter::font:           config.font           = value; break;
+            case Parameter::text_size:      config.text_size      = std::stoi(value); break;
+            case Parameter::text_color:
+                std::stringstream strstr(value);
+                strstr >> config.text_color[0] >> config.text_color[1] >> config.text_color[2] >> config.text_color[3];
+                break;
+            }
+        } catch (const std::out_of_range&) {
+            // Do nothing.
         }
     }
 }

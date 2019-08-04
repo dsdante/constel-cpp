@@ -1,9 +1,7 @@
+/.idea/
 /.settings/
-/Debug/
-/Release/
+/bin-debug/
+/cmake-build/
 
 .cproject
 .project
-constel
-*.o
-*.out

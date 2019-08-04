@@ -1,4 +1,5 @@
-#include<string>
+#include <memory>
+#include <string>
 
 #include <stdlib.h>
 #include <time.h>
@@ -11,10 +12,8 @@
 
 void exit_finalize(int code)
 {
-    finalize_input();
     finalize_graphics();
     finalize_world();
-    finalize_config();
     exit(code);
 }
 
@@ -26,17 +25,17 @@ int main(int argc, char **argv)
     std::string config_file;
     if (argc >= 2)
         config_file = argv[1];
-    init_config(config_file);
+    config.load(config_file);
     init_world();
     GLFWwindow* window = init_graphics();
     if (!window)
         exit_finalize(1);
-    init_input(window);
+    input.initialize(window);
 
     // Main loop
     while (!glfwWindowShouldClose(window)) {
         double time = frame_sleep();
-        process_input(window);
+        input.frame();
         world_frame(time);
         draw();
     }
